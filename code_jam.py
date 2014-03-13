@@ -17,10 +17,12 @@
 
 '''
 Utility library for solving code jams. Handles input tokenization and output
-formatting.
+formatting. Source-compatible with python 2 and 3.
 '''
 
 from sys import stdin, stdout
+from itertools import islice
+from __future__ import print_function
 
 
 class Tokens:
@@ -43,26 +45,32 @@ class Tokens:
         return self.tokens
 
     def __next__(self):
-        return next(self.tokens)
+        return next(self)
 
     def next_token(self, type):
         '''Read a single token of type `type`'''
         return type(next(self))
 
-    def next_many_tokens(self, n, type, collection=(lambda x: x)):
+    def gen_many_tokens(self, n, type):
         '''
-        Read a group of tokens, and store them in a collection. If collection is
-        not given, instead return a generator of tokens.
+        Get a generator for the next n tokens
         '''
-        return collection(self.next_token(type) for i in range(n))
+        for _ in range(n):
+            yield self.next_token(type)
+
+    def next_many_tokens(self, n, type, collection):
+        '''
+        Read a group of tokens, and store them in a collection.
+        '''
+        return collection(self.gen_many_tokens(n, type))
 
 
 def generic_solve_code_jam(solver, num_cases, ostr=stdout):
     '''
     Output the solution of a code jam to `ostr`. The jam consists of `num_cases`
     cases, and each case is solved by a call to solver with no arguments. This
-    function handles formatting the output correctly. It doesn't handle anything
-    to do with the input. It outputs the lines to both ostr and log.
+    function handles formatting the output correctly, using the standard code
+    jam "Case #1: x" formatting.
     '''
     for case in range(num_cases):
         print("Case #{}: {}".format(case + 1, solver()), file=ostr)
