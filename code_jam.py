@@ -42,10 +42,10 @@ class Tokens:
         self.tokens = self.tokenize(stream)
 
     def __iter__(self):
-        return self.tokens
+        return self
 
     def __next__(self):
-        return next(self)
+        return next(self.tokens)
 
     def next_token(self, type):
         '''Read a single token of type `type`'''
