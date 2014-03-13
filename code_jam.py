@@ -21,7 +21,6 @@ formatting.
 '''
 
 from sys import stdin, stdout
-from functools import wraps
 
 
 class Tokens:
