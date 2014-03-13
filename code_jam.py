@@ -20,7 +20,7 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting.
 '''
 
-from sys import stdin, stdout, stderr
+from sys import stdin, stdout
 from functools import wraps
 
 
@@ -58,7 +58,7 @@ class Tokens:
         return collection(self.next_token(type) for i in range(n))
 
 
-def generic_solve_code_jam(solver, num_cases, ostr=stdout, log=stderr):
+def generic_solve_code_jam(solver, num_cases, ostr=stdout):
     '''
     Output the solution of a code jam to `ostr`. The jam consists of `num_cases`
     cases, and each case is solved by a call to solver with no arguments. This
@@ -66,12 +66,10 @@ def generic_solve_code_jam(solver, num_cases, ostr=stdout, log=stderr):
     to do with the input. It outputs the lines to both ostr and log.
     '''
     for case in range(num_cases):
-        result = "Case #{}: {}".format(case + 1, solver())
-        print(result, file=ostr)
-        print(result, file=log)
+        print("Case #{}: {}".format(case + 1, solver()), file=ostr)
 
 
-def solve_code_jam(solver, istr=stdin, ostr=stdout, log=stderr):
+def solve_code_jam(solver, istr=stdin, ostr=stdout):
     '''
     For a code jam where the first token is the number of cases, this function
     outputs the solution, as with generic_solve_code_jam. In this variant, the
@@ -81,5 +79,5 @@ def solve_code_jam(solver, istr=stdin, ostr=stdout, log=stderr):
     generic_solve_code_jam(
         (lambda: solver(tokens)),
         tokens.next_token(int),
-        ostr, log)
+        ostr)
 
