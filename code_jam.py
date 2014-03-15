@@ -20,8 +20,8 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting. Source-compatible with python 2 and 3.
 '''
 
-from sys import stdin, stdout
 from __future__ import print_function
+from sys import stdin, stdout
 
 
 class Tokens:
