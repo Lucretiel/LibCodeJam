@@ -21,7 +21,6 @@ formatting. Source-compatible with python 2 and 3.
 '''
 
 from sys import stdin, stdout
-from itertools import islice
 from __future__ import print_function
 
 
