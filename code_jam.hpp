@@ -49,6 +49,13 @@ public:
 		for(; begin != end; ++begin)
 			istr() >> *begin;
 	}
+	
+	template<class T>
+	void next_n_tokens(unsigned n, It begin)
+	{
+		for(unsigned i = 0; i < n; ++i, ++begin)
+			istr() >> *begin
+	}
 };
 
 template<class Solver>
