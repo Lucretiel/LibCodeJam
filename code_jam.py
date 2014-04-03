@@ -34,8 +34,7 @@ class Tokens:
         Break a stream into whitespace-separated tokens
         '''
         for line in stream:
-            for token in line.split():
-                yield token
+            yield from line.split()
 
     def __init__(self, stream=stdin):
         self.tokens = self.tokenize(stream)
