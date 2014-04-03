@@ -16,6 +16,8 @@
  */
 
  //C++ implementation of the code jam library
+ 
+ #pragma once
 
  #include <iostream>
  #include <iterator>
