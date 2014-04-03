@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- //C++ implementation of the code jam library
+ //C++ implementation of the code jam library. Pre-C++11.
 
  #pragma once
 
@@ -60,20 +60,21 @@ public:
 };
 
 template<class Solver>
-void generic_solve_code_jam(unsigned num_cases, Solver&& solver,
+void generic_solve_code_jam(unsigned num_cases, Solver& solver,
 	std::ostream& ostr=std::cout)
 {
 	for(unsigned c = 1; c <= num_cases; ++c)
-		ostr << "Case #" << c << ": " << solver() << "\n";
+		ostr << "Case #" << c << ": " << solver() << '\n';
 }
 
+//Can't reuse generic one without a return type deducer
 template<class Solver>
-void solve_code_jam(Solver&& solver, std::istream& istr=std::cin,
+void solve_code_jam(Solver& solver, std::istream& istr=std::cin,
 	std::ostream& ostr=std::cout)
 {
 	Tokens tokens(istr);
-	generic_solve_code_jam(
-		tokens.next_token<unsigned>(),
-		[&tokens, &solver] () {return solver(tokens)},
-		ostr);
+	unsigned num_cases = tokens.next_token<unsigned>();
+
+	for(unsigned c = 1; c <= num_cases; ++c)
+		ostr << "Case #" << c << ": " << solver(tokens) << '\n'
 }
