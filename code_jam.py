@@ -72,7 +72,7 @@ def generic_solve_code_jam(solver, num_cases, ostr=stdout):
     jam "Case #1: x" formatting.
     '''
     for case in range(num_cases):
-        print("Case #{}: {}".format(case + 1, solver()), file=ostr)
+        print("Case #{}:".format(case + 1), solver(), file=ostr)
 
 
 def solve_code_jam(solver, istr=stdin, ostr=stdout):
