@@ -46,37 +46,44 @@ class Tokens:
     def __next__(self):
         return next(self.tokens)
 
+    def next(self):
+        '''
+        next method for python 2 compatibility
+        '''
+        return next(self.tokens)
+
     def next_token(self, type):
         '''Read a single token of type `type`'''
-        return type(next(self))
+        return type(next(self.tokens))
 
-    def gen_many_tokens(self, n, type):
+    def next_many_tokens(self, n, type):
         '''
         Get a generator for the next n tokens
         '''
         for _ in range(n):
             yield self.next_token(type)
 
-    def next_many_tokens(self, n, type, collection):
+    def next_counted_tokens(self, type):
         '''
-        Read a group of tokens, and store them in a collection.
+        Read a token n, then n tokens
         '''
-        return collection(self.gen_many_tokens(n, type))
+        return self.gen_many_tokens(self.next_token(int), type)
 
 
-def generic_solve_code_jam(solver, num_cases, ostr=stdout):
+def generic_solve_code_jam(solver, num_cases, format_str="Case #{}:", ostr=stdout):
     '''
     Output the solution of a code jam to `ostr`. The jam consists of `num_cases`
     cases, and each case is solved by a call to solver with no arguments. This
     function handles formatting the output correctly, using the standard code
     jam "Case #1: x" formatting.
     '''
-    case_line = "Case #{}".format
+
+    case_line = format_str.format
     for case in range(num_cases):
         print(case_line(case + 1), solver(), file=ostr)
 
 
-def solve_code_jam(solver, istr=stdin, ostr=stdout):
+def solve_code_jam(solver, format_str="Case #{}:", istr=stdin, ostr=stdout):
     '''
     For a code jam where the first token is the number of cases, this function
     outputs the solution, as with generic_solve_code_jam. In this variant, the
@@ -86,5 +93,16 @@ def solve_code_jam(solver, istr=stdin, ostr=stdout):
     generic_solve_code_jam(
         (lambda: solver(tokens)),
         tokens.next_token(int),
+        format_str,
         ostr)
+
+def solve_with(format_str="Case #{}:", istr=stdin, ostr=stdout):
+    '''
+    Decorator to immediatly solve a code jam with a function. Doesn't respect
+    __name__ == '__main__'
+    '''
+    def decorator(solver):
+        solve_code_jam(solver, format_str, istr, ostr)
+        return solver
+    return decorator
 
