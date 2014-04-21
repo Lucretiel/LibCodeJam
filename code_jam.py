@@ -37,7 +37,7 @@ class Tokens:
             for token in line.split():
                 yield token
 
-    def __init__(self, stream=stdin):
+    def __init__(self, stream):
         self.tokens = self.tokenize(stream)
 
     def __iter__(self):
@@ -67,10 +67,10 @@ class Tokens:
         '''
         Read a token n, then n tokens
         '''
-        return self.gen_many_tokens(self.next_token(int), type)
+        return self.next_many_tokens(self.next_token(int), type)
 
 
-def generic_solve_code_jam(solver, num_cases, format_str="Case #{}:", ostr=stdout):
+def generic_solve_code_jam(solver, num_cases, ostr):
     '''
     Output the solution of a code jam to `ostr`. The jam consists of `num_cases`
     cases, and each case is solved by a call to solver with no arguments. This
@@ -78,12 +78,12 @@ def generic_solve_code_jam(solver, num_cases, format_str="Case #{}:", ostr=stdou
     jam "Case #1: x" formatting.
     '''
 
-    case_line = format_str.format
+    case_line = "Case #{}:".format
     for case in range(num_cases):
         print(case_line(case + 1), solver(), file=ostr)
 
 
-def solve_code_jam(solver, format_str="Case #{}:", istr=stdin, ostr=stdout):
+def solve_code_jam(solver, istr, ostr):
     '''
     For a code jam where the first token is the number of cases, this function
     outputs the solution, as with generic_solve_code_jam. In this variant, the
@@ -93,16 +93,12 @@ def solve_code_jam(solver, format_str="Case #{}:", istr=stdin, ostr=stdout):
     generic_solve_code_jam(
         (lambda: solver(tokens)),
         tokens.next_token(int),
-        format_str,
         ostr)
 
-def solve_with(format_str="Case #{}:", istr=stdin, ostr=stdout):
+def autosolve(solver):
     '''
-    Decorator to immediatly solve a code jam with a function. Doesn't respect
-    __name__ == '__main__'
+    Decorator to immediatly solve a code jam with a function, from stdin and
+    stdout. Doesn't respect __name__ == '__main__'
     '''
-    def decorator(solver):
-        solve_code_jam(solver, format_str, istr, ostr)
-        return solver
-    return decorator
-
+    solve_code_jam(solver, stdin, stdout)
+    return solver
