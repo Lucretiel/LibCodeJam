@@ -85,7 +85,7 @@ template<class Solver>
 void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
 	Solver&& solver)
 {
-	TaskState task_state(istr, ostr)
+	TaskState task_state(istr, ostr);
 	const unsigned num_tasks = task_state.tokens.next_token<unsigned>();
 
 	std::vector<std::thread> threads;
