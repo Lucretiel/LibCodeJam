@@ -95,17 +95,6 @@ void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
 		[&solver, &tokens]() { return solver(tokens); });
 }
 
-/*
- * Optionally, #define AUTOSOLVE func_name to solve the code jame with that
- * function
- */
-
-#ifdef AUTOSOLVE
-
-int main(int argc, char const *argv[])
-{
-	solve_code_jam(std::cin, std::cout, &AUTOSOLVE);
-	return 0;
-}
-
-#endif
+#define AUTOSOLVE(FUNCTION) \
+int main(int argc, char const *argv[]) \
+{ solve_code_jam(std::cin, std::cout, (&FUNCTION)); return 0; }
