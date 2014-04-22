@@ -25,6 +25,7 @@ other threads to proceed. Correct order of output is handled automatically.
 */
 
 #include <thread>
+#include <vector>
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
@@ -33,16 +34,13 @@ other threads to proceed. Correct order of output is handled automatically.
 
 struct TaskState
 {
-public:
-	Tokens tokens;
-
 private:
 	std::mutex token_mutex;
-	std::unsigned next_task_id = 1;
+	unsigned next_task_id = 1;
 
 	std::mutex print_mutex;
 	std::condition_variable print_cond;
-	std::unsigned next_print = 1;
+	unsigned next_print = 1;
 
 	Tokens tokens;
 	std::ostream* ostr;

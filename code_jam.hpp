@@ -57,7 +57,7 @@ public:
 
 	//Read a token n, then fill the range with the next n tokens
 	template<class Iterator>
-	void next_counted_tokens(Iterator begin);
+	void next_counted_tokens(Iterator begin)
 	{
 		next_n_tokens(begin, next_token<unsigned>())
 	}
@@ -89,7 +89,7 @@ void solve_code_jam(unsigned num_cases, std::ostream& ostr, Solver&& solver)
 template<class Solver>
 void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
 {
-	Tokens token(istr)
+	Tokens token(istr);
 
 	solve_code_jam(tokens.next_token<unsigned>(), ostr,
 		[&solver, &tokens]() { return solver(tokens); });
