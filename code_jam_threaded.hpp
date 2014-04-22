@@ -34,6 +34,9 @@ other threads to proceed. Correct order of output is handled automatically.
 
 struct TaskState
 {
+public:
+	Tokens tokens;
+
 private:
 	std::mutex token_mutex;
 	unsigned next_task_id = 1;
@@ -42,7 +45,6 @@ private:
 	std::condition_variable print_cond;
 	unsigned next_print = 1;
 
-	Tokens tokens;
 	std::ostream* ostr;
 
 public:
