@@ -103,4 +103,4 @@ void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
 
 #define AUTOSOLVE_MULTITHREAD(FUNCTION) \
 int main(int argc, char const *argv[]) \
-{ solve_code_jam_multithreaded(std::cin, std::cout, (&FUNCTION)); return 0; }
+{ solve_code_jam_multithreaded(std::cin, std::cout, (&FUNCTION)); }

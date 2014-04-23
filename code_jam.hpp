@@ -30,7 +30,7 @@ public:
 
 	std::istream& stream() { return *istr; }
 
-	//Get the next token
+	//Get and return a single token
 	template<class T>
 	T next_token()
 	{
@@ -38,6 +38,17 @@ public:
 		stream() >> token;
 		return token;
 	}
+
+	//Get a fixed set of tokens
+	template<class T, class... Args>
+	void load_tokens(T& token, Args&... rest)
+	{
+		stream() >> token;
+		next_token(rest...);
+	}
+
+	void load_tokens()
+	{}
 
 	//Fill the range with the next tokens
 	template<class Iterator>
@@ -49,7 +60,7 @@ public:
 
 	//Fill the range with the next n tokens
 	template<class Iterator>
-	void next_n_tokens(Iterator begin, const unsigned n)
+	void next_tokens(Iterator begin, const unsigned n)
 	{
 		for(unsigned i = 0; i < n; ++i, ++begin)
 			stream() >> *begin;
@@ -57,25 +68,24 @@ public:
 
 	//Read a token n, then fill the range with the next n tokens
 	template<class Iterator>
-	void next_counted_tokens(Iterator begin)
+	void next_tokens(Iterator begin)
 	{
 		next_n_tokens(begin, next_token<unsigned>());
 	}
 
-	//Apply a function to the next n tokens of type T
-	template<class T, class Func>
-	void apply_n_tokens(const unsigned n, Func&& func)
+	//Push back the next n tokens to a container
+	template<class Container, class T=typename Container::value_type>
+	void push_back_tokens(Container& container, const unsigned n)
 	{
 		for(unsigned i = 0; i < n; ++i)
-			func(next_token<T>());
+			container.push_back(next_token<T>());
 	}
 
-	//Read a token n, then apply a function to the next n tokens of type T
-	template<class T, class Func>
-	void apply_counted_tokens(Func&& func)
+	//Read a token n, then push back the next n tokens
+	template<class Container, class T=typename Container::value_type>
+	void push_back_tokens(Container& container)
 	{
-		apply_n_tokens<T>(next_token<unsigned>(),
-			std::forward<Func>(func));
+		push_back_tokens(container, next_token<unsigned>());
 	}
 };
 
@@ -97,4 +107,4 @@ void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
 
 #define AUTOSOLVE(FUNCTION) \
 int main(int argc, char const *argv[]) \
-{ solve_code_jam(std::cin, std::cout, (&FUNCTION)); return 0; }
+{ solve_code_jam(std::cin, std::cout, (&FUNCTION)); }
