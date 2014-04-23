@@ -34,11 +34,8 @@ other threads to proceed. Correct order of output is handled automatically.
 
 struct TaskState
 {
-public:
-	Tokens tokens;
-
 private:
-	std::mutex token_mutex;
+	std::mutex input_mutex;
 	unsigned next_task_id = 1;
 
 	std::mutex print_mutex;
@@ -48,8 +45,7 @@ private:
 	std::ostream* ostr;
 
 public:
-	TaskState(std::istream& istr, std::ostream& ostr):
-		tokens(istr),
+	TaskState(std::ostream& ostr):
 		ostr(&ostr)
 	{}
 
@@ -60,8 +56,8 @@ public:
 		token_mutex.lock();
 		unsigned task_id = next_task_id++;
 
-		//Solve case.
-		auto result = solver(tokens, token_mutex);
+		//Solve case. solver MUST unlock the token_mutex when it is done reading
+		auto result = solver(token_mutex);
 
 		//Lock for printing
 		std::unique_lock<std::mutex> lock(print_mutex);
@@ -81,13 +77,12 @@ public:
 	}
 };
 
+//Generic solve. Use this when the number of test cases is separatly determined
 template<class Solver>
-void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
+void solve_code_jam_multithreaded(unsigned num_tasks, std::ostream& ostr,
 	Solver&& solver)
 {
-	TaskState task_state(istr, ostr);
-	const unsigned num_tasks = task_state.tokens.next_token<unsigned>();
-
+	TaskState task_state(ostr);
 	std::vector<std::thread> threads;
 	threads.reserve(num_tasks);
 
@@ -101,10 +96,41 @@ void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
 		thread.join();
 }
 
+//Standard solve. Use this when the first token is the number of test cases
+template<class Solver>
+void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
+	Solver&& solver)
+{
+	Tokens tokens(istr);
+
+	solve_code_jam_multithreaded(
+		tokens.next_token<unsigned>(), ostr,
+		[&tokens, &solver](std::mutex& mutex)
+		{
+			return solver(tokens, mutex);
+		});
+}
+
+/*
+ * Create a main function that calls solve_code_jam_multithreaded with cin,
+ * cout, and a function pointer to the provided function
+ */
 #define MAIN_MULTITHREAD(FUNCTION) \
 int main(int argc, char const *argv[]) \
 { solve_code_jam_multithreaded(std::cin, std::cout, (&FUNCTION)); }
 
+/*
+ * Use this instead of a normal function declaration to create a program that
+ * automatically solves, using the function. Example:
+ *
+ *	AUTOSOLVE_MULTITHREAD(int, tokens, mutex)
+ *	{
+ *		int x = tokens.next_token<int>();
+ *		mutex.unlock();
+ *		//Solve!
+ *		return solution;
+ *	}
+ */
 #define AUTOSOLVE_MULTITHREAD(RETURN_TYPE, TOKENS, MUTEX) \
 RETURN_TYPE autosolve(Tokens& TOKENS, std::mutex& MUTEX); \
 MAIN_MULTITHREAD(autosolve) \
