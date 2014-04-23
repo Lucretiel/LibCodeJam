@@ -108,6 +108,6 @@ int main(int argc, char const *argv[]) \
 #define AUTOSOLVE_MULTITHREAD(TOKENS, MUTEX) \
 auto autosolve(Tokens& TOKENS, std::mutex& MUTEX); \
 MAIN_MULTITHREAD(autosolve) \
-auto autosolve(Tokens& TOKENS, std::mutex& MUTEX);
+auto autosolve(Tokens& TOKENS, std::mutex& MUTEX)
 
 
