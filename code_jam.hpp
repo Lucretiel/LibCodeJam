@@ -44,7 +44,7 @@ public:
 	void load_tokens(T& token, Args&... rest)
 	{
 		stream() >> token;
-		next_token(rest...);
+		load_tokens(rest...);
 	}
 
 	void load_tokens()
