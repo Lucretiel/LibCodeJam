@@ -101,6 +101,13 @@ void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
 		thread.join();
 }
 
-#define AUTOSOLVE_MULTITHREAD(FUNCTION) \
+#define MAIN_MULTITHREAD(FUNCTION) \
 int main(int argc, char const *argv[]) \
 { solve_code_jam_multithreaded(std::cin, std::cout, (&FUNCTION)); }
+
+#define AUTOSOLVE_MULTITHREAD(TOKENS, MUTEX) \
+auto autosolve(Tokens& TOKENS, std::mutex& MUTEX); \
+MAIN_MULTITHREAD(autosolve) \
+auto autosolve(Tokens& TOKENS, std::mutex& MUTEX);
+
+

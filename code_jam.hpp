@@ -105,6 +105,11 @@ void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
 		[&solver, &tokens]() { return solver(tokens); });
 }
 
-#define AUTOSOLVE(FUNCTION) \
+#define MAIN(FUNCTION) \
 int main(int argc, char const *argv[]) \
 { solve_code_jam(std::cin, std::cout, (&FUNCTION)); }
+
+#define AUTOSOLVE(TOKENS) \
+auto autosolve(Tokens& TOKENS); \
+MAIN(autosolve) \
+auto autosolve(Tokens& TOKENS)
