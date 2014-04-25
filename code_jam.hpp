@@ -16,19 +16,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iostream>
-#include <utility>
 
 class Tokens
 {
 private:
 	std::istream* istr;
+	std::istream& stream() { return *istr; }
 
 public:
 	explicit Tokens(std::istream& istr=std::cin):
 		istr(&istr)
 	{}
 
-	std::istream& stream() { return *istr; }
+	//istream-style read off of stream
+	template<class T>
+	Tokens& operator >>(T& token)
+	{
+		stream() >> token;
+		return *this;
+	}
 
 	//Get and return a single token
 	template<class T>
@@ -108,8 +114,3 @@ void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
 #define MAIN(FUNCTION) \
 int main(int argc, char const *argv[]) \
 { solve_code_jam(std::cin, std::cout, (&FUNCTION)); }
-
-#define AUTOSOLVE(RETURN_TYPE, TOKENS) \
-RETURN_TYPE autosolve(Tokens& TOKENS); \
-MAIN(autosolve) \
-RETURN_TYPE autosolve(Tokens& TOKENS)
