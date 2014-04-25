@@ -49,13 +49,13 @@ void solve_code_jam_multithreaded(unsigned num_cases, std::ostream& ostr,
 	unsigned next_print = 0;
 
 	std::vector<std::thread> threads;
-	threads.reserve(num_tasks);
+	threads.reserve(num_cases);
 
-	for(unsigned case_id = 0; case_id < num_cases; ++i)
+	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
-		input_mutex.lock()
-		threads.emplace_back(
-		[case_id, &input_mutex, &print_mutex, &print_cond, &next_print]
+		input_mutex.lock();
+		threads.emplace_back([case_id, &solver, &input_mutex, &print_mutex,
+			&print_cond, &next_print, &ostr]
 		{
 			//Solve case. solver MUST unlock the input_mutex when it is done reading
 			auto result = solver(input_mutex);
@@ -64,7 +64,7 @@ void solve_code_jam_multithreaded(unsigned num_cases, std::ostream& ostr,
 			std::unique_lock<std::mutex> print_lock(print_mutex);
 
 			//Wait until our turn to print
-			print_cond.wait(print_lock, [this, case_id]
+			print_cond.wait(print_lock, [case_id, &next_print]
 			{
 				return case_id == next_print;
 			});
