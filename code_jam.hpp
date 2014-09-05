@@ -63,6 +63,13 @@ public:
 		for(; begin != end; ++begin)
 			stream() >> *begin;
 	}
+	
+	//Fill a container with the next tokens
+	template<class Container>
+	void next_tokens(Container& container)
+	{
+		next_tokens(std::begin(container), std::end(container));
+	}
 
 	//Fill the range with the next n tokens
 	template<class Iterator>
