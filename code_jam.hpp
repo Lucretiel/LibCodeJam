@@ -99,7 +99,7 @@ template<class Solver>
 void solve_code_jam(unsigned num_cases, std::ostream& ostr, Solver&& solver)
 {
 	for(unsigned c = 1; c <= num_cases; ++c)
-		ostr << "Case #" << c << ": " << solver() << '\n';
+		ostr << "Case #" << c << ": " << solver() << endl;
 }
 
 template<class Solver>
