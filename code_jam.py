@@ -46,11 +46,8 @@ class Tokens:
     def __next__(self):
         return next(self.tokens)
 
-    def next(self):
-        '''
-        next method for python 2 compatibility
-        '''
-        return next(self.tokens)
+    # next method for python 2 compatibility
+    next = __next__
 
     def next_token(self, type):
         '''Read a single token of type `type`'''
