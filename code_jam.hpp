@@ -74,7 +74,7 @@ public:
 
 	//Fill the range with the next n tokens
 	template<class Iterator>
-	void next_tokens(Iterator begin, const unsigned n)
+	void next_n_tokens(Iterator begin, const unsigned n)
 	{
 		for(unsigned i = 0; i < n; ++i, ++begin)
 			stream() >> *begin;
@@ -82,7 +82,7 @@ public:
 
 	//Read a token n, then fill the range with the next n tokens
 	template<class Iterator>
-	void next_tokens(Iterator begin)
+	void next_n_tokens(Iterator begin)
 	{
 		next_n_tokens(begin, next_token<unsigned>());
 	}
