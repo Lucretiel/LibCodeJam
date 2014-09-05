@@ -68,7 +68,8 @@ public:
 	template<class Container>
 	void next_tokens(Container& container)
 	{
-		next_tokens(std::begin(container), std::end(container));
+		for(auto& e : container)
+			stream() >> e;
 	}
 
 	//Fill the range with the next n tokens
