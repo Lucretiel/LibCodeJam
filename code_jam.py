@@ -26,7 +26,8 @@ from sys import stdin, stdout
 
 class Tokens:
     '''
-    Helper class to read in tokens, either individually or in groups.
+    Helper class to read in tokens, either individually or in groups. A
+    token is simply a whitespace-delimited group of characters.
     '''
     @staticmethod
     def tokenize(stream):
@@ -49,53 +50,73 @@ class Tokens:
     # next method for python 2 compatibility
     next = __next__
 
-    def next_token(self, type):
-        '''Read a single token of type `type`'''
-        return type(next(self.tokens))
-
-    def next_many_tokens(self, n, type):
+    def next_token(self, t):
         '''
-        Get a generator for the next n tokens
+        Read a single token of type `t`
+        '''
+        return t(next(self.tokens))
+
+    def next_many_tokens(self, n, t):
+        '''
+        Yield the next `n` tokens of type `t`
         '''
         for _ in range(n):
-            yield self.next_token(type)
+            yield self.next_token(t)
 
     def next_counted_tokens(self, type):
         '''
-        Read a token n, then n tokens
+        Read a token n, then yield n tokens of type `t`.
         '''
         return self.next_many_tokens(self.next_token(int), type)
 
 
-def generic_solve_code_jam(solver, num_cases, ostr):
+def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
-    Output the solution of a code jam to `ostr`. The jam consists of `num_cases`
-    cases, and each case is solved by a call to solver with no arguments. This
-    function handles formatting the output correctly, using the standard code
-    jam "Case #1: x" formatting.
+    Output the solution of a code jam to `ostr`. `solver` is a generator or
+    function that takes a Tokens object and yields solutions or returns a list
+    of solutions. This function handles formatting the output correctly, using
+    the standard code jam "Case #1: X" formatting. If `insert_newline` is True,
+    a newline is printed before the solution ("Case #1:\nX").
     '''
 
-    case_line = "Case #{}:".format
-    for case in range(num_cases):
-        print(case_line(case + 1), solver(), file=ostr)
+    format_case = "Case #{}:".format
+    sep = '\n' if insert_newline else ' '
+    
+    for case, solution in enumerate(solver(Tokens(istr)), 1):
+        print(format_case(case), solution, sep=sep, file=ostr, flush=True)
 
 
-def solve_code_jam(solver, istr, ostr):
+def solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
     For a code jam where the first token is the number of cases, this function
     outputs the solution, as with generic_solve_code_jam. In this variant, the
-    solver is called with the created Tokens object each time.
+    solver is a function which is called with the created Tokens object each
+    time and returns a single solution. This is the most typical use case.
     '''
-    tokens = Tokens(istr)
-    generic_solve_code_jam(
-        (lambda: solver(tokens)),
-        tokens.next_token(int),
-        ostr)
+    def solve(tokens):
+        for _ in range(tokens.next_token(int)):
+            yield solver(tokens)
+        
+    generic_solve_code_jam(solve, istr, ostr, insert_newline)
 
-def autosolve(solver):
+
+def autosolve(func=None, *, insert_newline=False, generic=False):
     '''
     Decorator to immediatly solve a code jam with a function, from stdin and
-    stdout. Doesn't respect __name__ == '__main__'
+    stdout. Doesn't respect __name__ == '__main__'. Can be used in 2 ways:
+
+        @autosolve
+        def solver(tokens):
+            code code code
+
+        @autosolve(insert_newline=True, ...)
+        def solver(tokens):
+            code code code
     '''
-    solve_code_jam(solver, stdin, stdout)
-    return solver
+
+    solve = generic_solve_code_jam if generic else solve_code_jam
+    def decorator(solver):        
+        solve(solver, stdin, stdout, insert_newline)
+        return solver
+
+    return decorator(func) if func else decorator
