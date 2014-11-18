@@ -17,12 +17,13 @@
 
 '''
 Utility library for solving code jams. Handles input tokenization and output
-formatting. Source-compatible with python 2 and 3.
+formatting. Source-compatible with python 2 and 3, but designed for python 3
+(plain range instead of xrange, __next__, etc).
 '''
 
 from __future__ import print_function
 from sys import stdin, stdout
-
+ 
 
 class Tokens:
     '''
@@ -72,7 +73,7 @@ class Tokens:
 
 def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
-    Output the solution of a code jam to `ostr`. `solver` is a generator or
+    Print the solution of a code jam to `ostr`. `solver` is a generator or
     function that takes a Tokens object and yields solutions or returns a list
     of solutions. This function handles formatting the output correctly, using
     the standard code jam "Case #1: X" formatting. If `insert_newline` is True,
@@ -89,7 +90,7 @@ def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
 def solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
     For a code jam where the first token is the number of cases, this function
-    outputs the solution, as with generic_solve_code_jam. In this variant, the
+    prints the solution, as with generic_solve_code_jam. In this variant, the
     solver is a function which is called with the created Tokens object each
     time and returns a single solution. This is the most typical use case.
     '''
@@ -113,7 +114,6 @@ def autosolve(func=None, *, insert_newline=False, generic=False):
         def solver(tokens):
             code code code
     '''
-
     solve = generic_solve_code_jam if generic else solve_code_jam
     def decorator(solver):        
         solve(solver, stdin, stdout, insert_newline)
