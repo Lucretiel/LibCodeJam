@@ -17,12 +17,12 @@
 
 '''
 Utility library for solving code jams. Handles input tokenization and output
-formatting. Source-compatible with python 2.6 and 3, but designed for python 3
-(plain range instead of xrange, __next__, etc).
+formatting.
 '''
 
 from __future__ import print_function
 from sys import stdin, stdout
+from signal import signal, SIGPIPE, SIG_DFL
 
 
 class Tokens:
@@ -64,11 +64,11 @@ class Tokens:
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted_tokens(self, type):
+    def next_counted_tokens(self, t):
         '''
         Read a token n, then yield n tokens of type `t`.
         '''
-        return self.next_many_tokens(self.next_token(int), type)
+        return self.next_many_tokens(self.next_token(int), t)
 
 
 def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
@@ -80,13 +80,19 @@ def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
     formatting. If `insert_newline` is True, a newline is printed before the
     solution ("Case #1:\nX"). The solution is outputted via a normal print, so
     returning strings, ints, or other printable types is fine.
+
+    This function also silently returns in the event of a BrokenPipeError from
+    either the input or output file.
     '''
 
     format_case = "Case #{}:".format
     sep = '\n' if insert_newline else ' '
 
-    for case, solution in enumerate(solver(Tokens(istr)), 1):
-        print(format_case(case), solution, sep=sep, file=ostr, flush=True)
+    try:
+        for case, solution in enumerate(solver(Tokens(istr)), 1):
+            print(format_case(case), solution, sep=sep, file=ostr, flush=True)
+    except BrokenPipeError:
+        signal(SIGPIPE, SIG_DFL)
 
 
 def solve_code_jam(solver, istr, ostr, insert_newline=False):
