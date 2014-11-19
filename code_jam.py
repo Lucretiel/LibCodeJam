@@ -23,7 +23,7 @@ formatting. Source-compatible with python 2 and 3, but designed for python 3
 
 from __future__ import print_function
 from sys import stdin, stdout
- 
+
 
 class Tokens:
     '''
@@ -82,7 +82,7 @@ def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
 
     format_case = "Case #{}:".format
     sep = '\n' if insert_newline else ' '
-    
+
     for case, solution in enumerate(solver(Tokens(istr)), 1):
         print(format_case(case), solution, sep=sep, file=ostr, flush=True)
 
@@ -97,7 +97,7 @@ def solve_code_jam(solver, istr, ostr, insert_newline=False):
     def solve(tokens):
         for _ in range(tokens.next_token(int)):
             yield solver(tokens)
-        
+
     generic_solve_code_jam(solve, istr, ostr, insert_newline)
 
 
@@ -115,7 +115,7 @@ def autosolve(func=None, *, insert_newline=False, generic=False):
             code code code
     '''
     solve = generic_solve_code_jam if generic else solve_code_jam
-    def decorator(solver):        
+    def decorator(solver):
         solve(solver, stdin, stdout, insert_newline)
         return solver
 
