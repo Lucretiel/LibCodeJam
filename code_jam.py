@@ -17,7 +17,7 @@
 
 '''
 Utility library for solving code jams. Handles input tokenization and output
-formatting. Source-compatible with python 2 and 3, but designed for python 3
+formatting. Source-compatible with python 2.6 and 3, but designed for python 3
 (plain range instead of xrange, __next__, etc).
 '''
 
@@ -27,8 +27,8 @@ from sys import stdin, stdout
 
 class Tokens:
     '''
-    Helper class to read in tokens, either individually or in groups. A
-    token is simply a whitespace-delimited group of characters.
+    Helper class to read in tokens, either individually or in groups. A token
+    is simply a whitespace-delimited group of characters.
     '''
     @staticmethod
     def tokenize(stream):
@@ -73,11 +73,13 @@ class Tokens:
 
 def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
-    Print the solution of a code jam to `ostr`. `solver` is a generator or
-    function that takes a Tokens object and yields solutions or returns a list
-    of solutions. This function handles formatting the output correctly, using
-    the standard code jam "Case #1: X" formatting. If `insert_newline` is True,
-    a newline is printed before the solution ("Case #1:\nX").
+    Print the solution of a code jam to the file object `ostr`, given an input
+    file object `istr`. `solver` is a generator or function that takes a Tokens
+    object and yields solutions or returns a list of solutions. Handles
+    formatting the output correctly, using the standard code jam "Case #1: X"
+    formatting. If `insert_newline` is True, a newline is printed before the
+    solution ("Case #1:\nX"). The solution is outputted via a normal print, so
+    returning strings, ints, or other printable types is fine.
     '''
 
     format_case = "Case #{}:".format
@@ -90,9 +92,10 @@ def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
 def solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
     For a code jam where the first token is the number of cases, this function
-    prints the solution, as with generic_solve_code_jam. In this variant, the
-    solver is a function which is called with the created Tokens object each
-    time and returns a single solution. This is the most typical use case.
+    prints the solution to the file object `ostr`, given an input file object
+    `istr`. In this variant, the solver is a function which is called with a
+    Tokens object and returns a single solution. This is the most typical use
+    case, as most code jams don't need to share any data.
     '''
     def solve(tokens):
         for _ in range(tokens.next_token(int)):
@@ -104,7 +107,8 @@ def solve_code_jam(solver, istr, ostr, insert_newline=False):
 def autosolve(func=None, *, insert_newline=False, generic=False):
     '''
     Decorator to immediatly solve a code jam with a function, from stdin and
-    stdout. Doesn't respect __name__ == '__main__'. Can be used in 2 ways:
+    stdout. Doesn't respect __name__ == '__main__'. Can be used with or without
+    arguments:
 
         @autosolve
         def solver(tokens):
@@ -120,3 +124,7 @@ def autosolve(func=None, *, insert_newline=False, generic=False):
         return solver
 
     return decorator(func) if func else decorator
+
+# TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
+# format when redirecting to a file. Force autosolve to make output to be UTF-8
+# or ascii on windows.
