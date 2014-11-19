@@ -21,7 +21,6 @@ class Tokens
 {
 private:
 	std::istream* istr;
-	std::istream& stream() { return *istr; }
 
 public:
 	explicit Tokens(std::istream& istr=std::cin):
@@ -36,7 +35,7 @@ public:
 		return *this;
 	}
 
-	//Get and return a single token
+	//Get and return a single token. Useful for storing const data.
 	template<class T>
 	T next_token()
 	{
@@ -45,25 +44,6 @@ public:
 		return token;
 	}
 
-	//Get a fixed set of tokens
-	template<class T, class... Args>
-	void load_tokens(T& token, Args&... rest)
-	{
-		stream() >> token;
-		load_tokens(rest...);
-	}
-
-	void load_tokens()
-	{}
-
-	//Fill the range with the next tokens
-	template<class Iterator>
-	void next_tokens(Iterator begin, Iterator end)
-	{
-		for(; begin != end; ++begin)
-			stream() >> *begin;
-	}
-	
 	//Fill a container with the next tokens
 	template<class Container>
 	void next_tokens(Container& container)
@@ -101,24 +81,34 @@ public:
 	{
 		push_back_tokens(container, next_token<unsigned>());
 	}
+
+	std::istream& stream() { return *istr; }
 };
 
 template<class Solver>
-void solve_code_jam(unsigned num_cases, std::ostream& ostr, Solver&& solver)
+void generic_solve_code_jam(Solver&& solver, unsigned num_cases,
+	std::ostream& ostr, bool insert_newline=false)
 {
+	const char* const sep = insert_newline ? ":\n" : ": ";
+
 	for(unsigned c = 1; c <= num_cases; ++c)
-		ostr << "Case #" << c << ": " << solver() << endl;
+		ostr << "Case #" << c << sep << solver() << std::endl;
 }
 
 template<class Solver>
-void solve_code_jam(std::istream& istr, std::ostream& ostr, Solver&& solver)
+void solve_code_jam(Solver&& solver, std::istream& istr, std::ostream& ostr,
+	bool insert_newline=false)
 {
 	Tokens tokens(istr);
 
-	solve_code_jam(tokens.next_token<unsigned>(), ostr,
-		[&solver, &tokens]() { return solver(tokens); });
+	generic_solve_code_jam([&solver, &tokens]() { return solver(tokens); },
+		tokens.next_token<unsigned>(), ostr, insert_newline);
 }
 
 #define MAIN(FUNCTION) \
 int main(int argc, char const *argv[]) \
-{ solve_code_jam(std::cin, std::cout, (&FUNCTION)); }
+{ solve_code_jam((&FUNCTION), std::cin, std::cout); }
+
+#define MAIN_WITH_NEWLINE(FUNCTION) \
+int main(int argc, char const *argv[]) \
+{ solve_code_jam((&FUNCTION), std::cin, std::cout, true); }
