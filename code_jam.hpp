@@ -92,7 +92,7 @@ void generic_solve_code_jam(Solver&& solver, unsigned num_cases,
 	const char* const sep = insert_newline ? ":\n" : ": ";
 
 	for(unsigned c = 1; c <= num_cases; ++c)
-		ostr << "Case #" << c << sep << solver() << std::endl;
+		ostr << "Case #" << c << sep << solver() << endl;
 }
 
 template<class Solver>
