@@ -21,8 +21,9 @@ formatting.
 '''
 
 from __future__ import print_function
-from sys import stdin, stdout
+from sys import stdin, stdout, exit
 from signal import signal, SIGPIPE, SIG_DFL
+from argparse import ArgumentParser, FileType
 
 
 class Tokens:
@@ -71,28 +72,45 @@ class Tokens:
         return self.next_many_tokens(self.next_token(int), t)
 
 
+def print_code_jam(solutions, ostr, insert_newline=False):
+    '''
+    Format and print the solutions of a code jam to the file object `ostr`.
+    `solutions` should be an ordered iterable of solutions. Prints using the
+    standard "Case #1: X" formatting. If insert_newline is True, a newline is
+    printed before each solution. The solution is printed with the standard
+    print functions, so any stringable type is fine.
+
+    This function silently stops and returns in the event of a BrokenPipeError
+    from either the input or output file.
+
+    Output is unconditionally flushed on every solution. This is to enable
+    real-time output even when in a pipeline, such as with head or tee.
+    '''
+    format_case = "Case #{}:".format
+    sep = '\n' if insert_newline else ' '
+
+    try:
+        for case, solution in enumerate(solutions, 1):
+            print(format_case(case), solution, sep=sep, file=ostr, flush=True)
+    except BrokenPipeError:
+        signal(SIGPIPE, SIG_DFL)
+
+
 def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
     Print the solution of a code jam to the file object `ostr`, given an input
-    file object `istr`. `solver` is a generator or function that takes a Tokens
-    object and yields solutions or returns a list of solutions. Handles
-    formatting the output correctly, using the standard code jam "Case #1: X"
-    formatting. If `insert_newline` is True, a newline is printed before the
-    solution ("Case #1:\nX"). The solution is outputted via a normal print, so
-    returning strings, ints, or other printable types is fine.
+    file object `istr`. `solver` is a generator that takes a Tokens object and
+    yields solutions to each case. Handles formatting the output correctly,
+    using the standard code jam "Case #1: X" formatting. If `insert_newline` is
+    True, a newline is printed before the solution ("Case #1:\nX"). The
+    solution is outputted via a normal print, so returning strings, ints, or
+    other printable types is fine.
 
     This function also silently returns in the event of a BrokenPipeError from
     either the input or output file.
     '''
 
-    format_case = "Case #{}:".format
-    sep = '\n' if insert_newline else ' '
-
-    try:
-        for case, solution in enumerate(solver(Tokens(istr)), 1):
-            print(format_case(case), solution, sep=sep, file=ostr, flush=True)
-    except BrokenPipeError:
-        signal(SIGPIPE, SIG_DFL)
+    return print_code_jam(solver(Tokens(istr)), ostr, insert_newline)
 
 
 def solve_code_jam(solver, istr, ostr, insert_newline=False):
@@ -107,14 +125,13 @@ def solve_code_jam(solver, istr, ostr, insert_newline=False):
         for _ in range(tokens.next_token(int)):
             yield solver(tokens)
 
-    generic_solve_code_jam(solve, istr, ostr, insert_newline)
+    return generic_solve_code_jam(solve, istr, ostr, insert_newline)
 
 
 def autosolve(func=None, *, insert_newline=False, generic=False):
     '''
-    Decorator to immediatly solve a code jam with a function, from stdin and
-    stdout. Doesn't respect __name__ == '__main__'. Can be used with or without
-    arguments:
+    Decorator to immediatly solve a code jam with a function. Doesn't respect
+    __name__ == '__main__'. Can be used with or without arguments:
 
         @autosolve
         def solver(tokens):
@@ -123,14 +140,29 @@ def autosolve(func=None, *, insert_newline=False, generic=False):
         @autosolve(insert_newline=True, ...)
         def solver(tokens):
             code code code
+
+    It optionally collects filenames from sys.argv. The first argument, if
+    given, is the input file, and the second argument, if given, is the output
+    file. These default to stdin and stdout, respectively.
     '''
-    solve = generic_solve_code_jam if generic else solve_code_jam
     def decorator(solver):
-        solve(solver, stdin, stdout, insert_newline)
+        solve = generic_solve_code_jam if generic else solve_code_jam
+
+        parser = ArgumentParser()
+        parser.add_argument('in_file',
+            type=FileType('r', encoding='ascii'), default=stdin, nargs='?',
+            help="The input file to use. Defaults to stdin")
+        parser.add_argument('out_file',
+            type=FileType('w', encoding='ascii'), default=stdout, nargs='?',
+            help="The file to write the solutions to. Defaults to stdout.")
+        args = parser.parse_args()
+
+        solve(solver, args.in_file, args.out_file, insert_newline)
+
         return solver
 
     return decorator(func) if func else decorator
 
 # TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
-# format when redirecting to a file. Force autosolve to make output to be UTF-8
-# or ascii on windows.
+# format on stdout. Force autosolve to make output to be ascii when >redirecting
+# to a file.
