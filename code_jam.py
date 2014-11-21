@@ -21,10 +21,11 @@ formatting.
 '''
 
 from __future__ import print_function
-from sys import stdin, stdout, exit
+from sys import stdin, stdout
 from signal import signal, SIGPIPE, SIG_DFL
-from argparse import ArgumentParser, FileType
-
+from argparse import ArgumentParser
+from contextlib import contextmanager
+from inspect import isgeneratorfunction
 
 class Tokens:
     '''
@@ -32,11 +33,11 @@ class Tokens:
     is simply a whitespace-delimited group of characters.
     '''
     @staticmethod
-    def tokenize(stream):
+    def tokenize(istr):
         '''
         Break a stream into whitespace-separated tokens
         '''
-        for line in stream:
+        for line in istr:
             for token in line.split():
                 yield token
 
@@ -44,13 +45,7 @@ class Tokens:
         self.tokens = self.tokenize(stream)
 
     def __iter__(self):
-        return self
-
-    def __next__(self):
-        return next(self.tokens)
-
-    # next method for python 2 compatibility
-    next = __next__
+        return self.tokens
 
     def next_token(self, t):
         '''
@@ -96,7 +91,7 @@ def print_code_jam(solutions, ostr, insert_newline=False):
         signal(SIGPIPE, SIG_DFL)
 
 
-def generic_solve_code_jam(solver, istr, ostr, insert_newline=False):
+def generator_solve_code_jam(solver, istr, ostr, insert_newline=False):
     '''
     Print the solution of a code jam to the file object `ostr`, given an input
     file object `istr`. `solver` is a generator that takes a Tokens object and
@@ -125,12 +120,29 @@ def solve_code_jam(solver, istr, ostr, insert_newline=False):
         for _ in range(tokens.next_token(int)):
             yield solver(tokens)
 
-    return generic_solve_code_jam(solve, istr, ostr, insert_newline)
+    return generator_solve_code_jam(solve, istr, ostr, insert_newline)
 
-
-def autosolve(func=None, *, insert_newline=False, generic=False):
+@contextmanager
+def _smart_open(filename, *args, **kwargs):
     '''
-    Decorator to immediatly solve a code jam with a function. Doesn't respect
+    Context manager to open and close a file. If the filename argument isn't a
+    string (for instance, if you pass stdin or stdout), it returns the object
+    directly.
+    '''
+    if isinstance(filename, str):
+        with open(filename, *args, **kwargs) as f:
+            yield f
+    else:
+        yield filename
+
+
+def autosolve(func=None, *, insert_newline=False):
+    '''
+    Decorator to immediatly solve a code jam with a function. It should
+    decorate a function which, when called with a Tokens object, returns a
+    solution to a single test case. The code jam is then immediatly solved
+    by assuming the first token is the number of test cases, and repeatedly
+    calling the decorated function to retreive solutions. Doesn't respect
     __name__ == '__main__'. Can be used with or without arguments:
 
         @autosolve
@@ -141,23 +153,34 @@ def autosolve(func=None, *, insert_newline=False, generic=False):
         def solver(tokens):
             code code code
 
-    It optionally collects filenames from sys.argv. The first argument, if
-    given, is the input file, and the second argument, if given, is the output
-    file. These default to stdin and stdout, respectively.
+    If `insert_newline` is True, a newline is printed between each "Case #" and
+    the solution itself.
+
+    If the decorated function is a generator, the behavior is slightly diffent.
+    The generator is called with the tokens object, and each yielded solution is
+    printed. The generator is responsible for yielding the correct number of
+    solutions in this case
+
+    autosolve also collects filenames from sys.argv. The first CLI argument, if
+    given, is the input file, and the second, if given, is the output file.
+    These default to stdin and stdout, respectively.
+
+    The decorated function is returned unchanged.
     '''
     def decorator(solver):
-        solve = generic_solve_code_jam if generic else solve_code_jam
-
         parser = ArgumentParser()
-        parser.add_argument('in_file',
-            type=FileType('r', encoding='ascii'), default=stdin, nargs='?',
+        parser.add_argument('in_file', nargs='?', default=stdin,
             help="The input file to use. Defaults to stdin")
-        parser.add_argument('out_file',
-            type=FileType('w', encoding='ascii'), default=stdout, nargs='?',
+        parser.add_argument('out_file', nargs='?', default=stdout,
             help="The file to write the solutions to. Defaults to stdout.")
         args = parser.parse_args()
 
-        solve(solver, args.in_file, args.out_file, insert_newline)
+        with _smart_open(args.in_file, 'r', encoding='ascii') as istr:
+            with _smart_open(args.out_file, 'w', encoding='ascii') as ostr:
+                if isgeneratorfunction(solver):
+                    generator_solve_code_jam(solver, istr, ostr, insert_newline)
+                else:
+                    solve_code_jam(solver, istr, ostr, insert_newline)
 
         return solver
 
