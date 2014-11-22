@@ -32,33 +32,57 @@ other threads to proceed. Correct order of output is handled automatically.
 
 #include "code_jam.hpp"
 
-/*
- * Generic solve. Use this when the number of test cases is separatly
- * determined. The solver object is a callable that takes a locked mutex as the
- * argument and returns the solution. It should unlock the mutex after it
- * reads all the tokens.
- */
-template<class Solver>
-void solve_code_jam_multithreaded(unsigned num_cases, std::ostream& ostr,
-	Solver&& solver)
+class ThreadedTokens : public Tokens
 {
+private:
 	std::mutex input_mutex;
 
+public:
+	ThreadedTokens(std::istream& istr):
+		Tokens(istr)
+	{}
+
+	void start_case()
+	{
+		input_mutex.lock();
+	}
+
+	void done() override
+	{
+		input_mutex.unlock();
+	}
+};
+
+
+
+/*
+ * Generic solve. Use this when the number of test cases is separatly
+ * determined. The solver object is a callable that takes the tokens objcet as
+ * an argument. In the course of solving the puzzle, it MUST call tokens.done()
+ * when it has finished reading all the tokens it needs, so that other threads
+ * can begin.
+ */
+template<class Solver>
+void solve_code_jam_multithreaded(Solver&& solver, ThreadedTokens& tokens,
+	unsigned num_cases, std::ostream& ostr, bool insert_newline=false)
+{
+	// These variables control print ordering
 	std::mutex print_mutex;
 	std::condition_variable print_cond;
 	unsigned next_print = 0;
 
+	//Our threads!
 	std::vector<std::thread> threads;
 	threads.reserve(num_cases);
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
-		input_mutex.lock();
-		threads.emplace_back([case_id, &solver, &input_mutex, &print_mutex,
-			&print_cond, &next_print, &ostr]
+		tokens.start_case();
+		threads.emplace_back([case_id, &solver, &tokens, &print_mutex,
+			&print_cond, &next_print, &ostr, insert_newline]
 		{
-			//Solve case. solver MUST unlock the input_mutex when it is done reading
-			auto result = solver(input_mutex);
+			//solve the case. solver must call tokens.done()
+			auto solution = solver(tokens);
 
 			//Lock for printing
 			std::unique_lock<std::mutex> print_lock(print_mutex);
@@ -70,7 +94,7 @@ void solve_code_jam_multithreaded(unsigned num_cases, std::ostream& ostr,
 			});
 
 			//Print result
-			ostr << "Case #" << case_id+1 << ": " << result << '\n';
+			print_case(solution, case_id, ostr, insert_newline);
 
 			//Increment print counter and signal next thread
 			++next_print;
@@ -88,23 +112,20 @@ void solve_code_jam_multithreaded(unsigned num_cases, std::ostream& ostr,
  * arguments and returns the solution.
  */
 template<class Solver>
-void solve_code_jam_multithreaded(std::istream& istr, std::ostream& ostr,
-	Solver&& solver)
+void solve_code_jam_multithreaded(Solver&& solver, std::istream& istr,
+	std::ostream& ostr, bool insert_newline=false)
 {
-	Tokens tokens(istr);
+	ThreadedTokens tokens(istr);
 
 	solve_code_jam_multithreaded(
-		tokens.next_token<unsigned>(), ostr,
-		[&tokens, &solver](std::mutex& mutex)
-		{
-			return solver(tokens, mutex);
-		});
+		[&solver](Tokens& tokens) { return solver(tokens); },
+		tokens, tokens.next_token<unsigned>(), ostr, insert_newline);
 }
 
 /*
  * Create a main function that calls solve_code_jam_multithreaded with cin,
  * cout, and a function pointer to the provided function
  */
-#define MAIN_MULTITHREAD(FUNCTION) \
+#define AUTOMAIN_MULTITHREAD(FUNCTION) \
 int main(int argc, char const *argv[]) \
-{ solve_code_jam_multithreaded(std::cin, std::cout, (&FUNCTION)); }
+{ solve_code_jam_multithreaded((FUNCTION), std::cin, std::cout, false); }
