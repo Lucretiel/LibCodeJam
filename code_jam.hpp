@@ -25,7 +25,7 @@ private:
 	std::istream* istr;
 
 public:
-	explicit Tokens(std::istream& istr=std::cin):
+	explicit Tokens(std::istream& istr):
 		istr(&istr)
 	{}
 
@@ -33,12 +33,18 @@ public:
 	 * Get and return a single token. Useful for storing const data.
 	 */
 	template<class T>
-	T next_token()
+	typename std::remove_cv<T>::type next_token()
 	{
 		typename std::remove_cv<T>::type token;
 		stream() >> token;
 		return token;
 	}
+
+	/*
+	 * Quick macro to create an object of type TYPE and initialize it with
+	 * next_token
+	 */
+	#define TOKEN(TYPE, NAME, TOKENS) TYPE NAME{(TOKENS).next_token<TYPE>()}
 
 	/*
 	 * Fill 1 or more variables of arbitrary type with tokens, in order.
