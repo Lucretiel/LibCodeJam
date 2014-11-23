@@ -25,10 +25,10 @@ other threads to proceed. Correct order of output is handled automatically.
 */
 
 #include <thread>
-#include <vector>
 #include <mutex>
 #include <condition_variable>
-#include <iostream>
+#include <vector>
+#include <utility>
 
 #include "code_jam.hpp"
 
@@ -53,79 +53,72 @@ public:
 	}
 };
 
-
-
-/*
- * Generic solve. Use this when the number of test cases is separatly
- * determined. The solver object is a callable that takes the tokens objcet as
- * an argument. In the course of solving the puzzle, it MUST call tokens.done()
- * when it has finished reading all the tokens it needs, so that other threads
- * can begin.
- */
-template<class Solver>
-void solve_code_jam_multithreaded(Solver&& solver, ThreadedTokens& tokens,
-	unsigned num_cases, std::ostream& ostr, bool insert_newline=false)
+template<class Solution>
+class ThreadedCodeJamSolver : public CodeJamSolver<Solution>
 {
-	// These variables control print ordering
+private:
 	std::mutex print_mutex;
 	std::condition_variable print_cond;
-	unsigned next_print = 0;
+	unsigned next_print;
 
-	//Our threads!
-	std::vector<std::thread> threads;
-	threads.reserve(num_cases);
-
-	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
+	void ordered_print(const Solution& solution, const unsigned index,
+		std::ostream& ostr)
 	{
-		tokens.start_case();
-		threads.emplace_back([case_id, &solver, &tokens, &print_mutex,
-			&print_cond, &next_print, &ostr, insert_newline]
+		//Lock for printing
+		std::unique_lock<std::mutex> print_lock(print_mutex);
+
+		//Wait until our turn to print
+		print_cond.wait(print_lock, [this, index]
 		{
-			//solve the case. solver must call tokens.done()
-			auto solution = solver(tokens);
-
-			//Lock for printing
-			std::unique_lock<std::mutex> print_lock(print_mutex);
-
-			//Wait until our turn to print
-			print_cond.wait(print_lock, [case_id, &next_print]
-			{
-				return case_id == next_print;
-			});
-
-			//Print result
-			print_case(solution, case_id, ostr, insert_newline);
-
-			//Increment print counter and signal next thread
-			++next_print;
-			print_cond.notify_all();
+			return index == next_print;
 		});
+
+		//Print result
+		this->print_case(solution, index, ostr);
+
+		//Increment print counter and signal next thread
+		++next_print;
+		print_cond.notify_all();
 	}
 
-	for(auto& thread : threads)
-		thread.join();
-}
+	void solve_code_jam(std::istream& istr, std::ostream& ostr) override
+	{
+		// Load up synchronized tokens
+		ThreadedTokens tokens(istr);
 
-/*
- * Standard solve. Use this when the first token is the number of test cases.
- * The solver is a function that takes a Tokens object and a mutex as the
- * arguments and returns the solution.
- */
-template<class Solver>
-void solve_code_jam_multithreaded(Solver&& solver, std::istream& istr,
-	std::ostream& ostr, bool insert_newline=false)
-{
-	ThreadedTokens tokens(istr);
+		//Presolve
+		const unsigned num_cases = this->pre_solve(tokens);
 
-	solve_code_jam_multithreaded(
-		[&solver](Tokens& tokens) { return solver(tokens); },
-		tokens, tokens.next_token<unsigned>(), ostr, insert_newline);
-}
+		//Reserve memory for threads
+		std::vector<std::thread> threads;
+		threads.reserve(num_cases);
 
-/*
- * Create a main function that calls solve_code_jam_multithreaded with cin,
- * cout, and a function pointer to the provided function
- */
-#define AUTOMAIN_MULTITHREAD(FUNCTION) \
-int main(int argc, char const *argv[]) \
-{ solve_code_jam_multithreaded((FUNCTION), std::cin, std::cout, false); }
+		// Reset printing
+		next_print = 0;
+
+		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
+		{
+			/*
+			 * Lock for a new test case. The test case must call done, allowing
+			 * future threads to be spawned. case_index is captured by value,
+			 * so that each thread has its own fixed index.
+			 */
+			tokens.start_case();
+			threads.emplace_back([this, case_index, &tokens, &ostr]
+			{
+				/*
+				 * Solve and print the case in this thread. The solver must
+				 * call tokens.done() to allow future threads to be spawned,
+				 * and the ordered print ensures that output happens in the
+				 * right order.
+				 */
+				ordered_print(this->solve_case(tokens), case_index, ostr);
+			});
+		}
+
+		for(auto& thread : threads)
+			thread.join();
+	}
+};
+
+#define SOLVER_MULTITHREADED(SOLUTION_TYPE, BODY) _SOLVER(ThreadedCodeJamSolver, SOLUTION_TYPE, BODY)

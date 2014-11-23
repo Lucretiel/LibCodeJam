@@ -19,6 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <fstream>
 #include <type_traits>
 
+/*
+ * In your .cpp file, override this with true before #including this file if
+ * you want to insert newlines between the Case# and the actual solutions
+ */
+#ifndef INSERT_NEWLINE
+#define INSERT_NEWLINE false
+#endif
+
 class Tokens
 {
 private:
@@ -30,7 +38,9 @@ public:
 	{}
 
 	/*
-	 * Get and return a single token. Useful for storing const data.
+	 * Get and return a single token. Useful for storing const data. The return
+	 * type removes const-qualifiers so that the return value can be used to
+	 * move construct a type
 	 */
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
@@ -44,19 +54,19 @@ public:
 	 * Quick macro to create an object of type TYPE and initialize it with
 	 * next_token
 	 */
-	#define TOKEN(TYPE, NAME, TOKENS) TYPE NAME{(TOKENS).next_token<TYPE>()}
+	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
 
 	/*
 	 * Fill 1 or more variables of arbitrary type with tokens, in order.
 	 */
 	template<class T, class... Rest>
-	void load_tokens(T& t, Rest&... rest)
+	inline void load_tokens(T& t, Rest&... rest)
 	{
 		stream() >> t;
 		load_tokens(rest...);
 	}
 
-	void load_tokens()
+	inline void load_tokens()
 	{}
 
 	/*
@@ -92,101 +102,97 @@ public:
 	}
 
 	/*
-	 * Access to the underlying stream, for other input operations the use may
+	 * Access to the underlying stream, for other input operations the user may
 	 * want.
 	 */
 	std::istream& stream() { return *istr; }
 
 	/*
-	 * Signal that this particular case is done reading tokens. No-op here, but
-	 * multi-threaded versions use it to signal the next thread to begin
-	 * reading tokens.
+	 * For a hypothetcial threaded version, this function should be called to
+	 * signal that the next thread may begin reading tokens
 	 */
-	virtual void done() {}
+
+	virtual void done() {};
 };
 
 /*
- * Format and print a single code jam test case solution. case_index is
- * 0-indexed. If insert_newline is true, insert a newline before the actual
- * solution. Returns true if the output failed somehow (for instance, a broken
- * pipe)
+ * This class solves a whole code jam. Users should implement solve_case and,
+ * if necessary, pre_solve. solve_code_jam is made virtual so that
  */
 template<class Solution>
-inline bool print_case(Solution&& solution, unsigned case_index,
-	std::ostream& ostr, bool insert_newline=false)
+class CodeJamSolver
 {
-	if(ostr.good())
-		ostr << "Case #" << case_index + 1 <<
-		(insert_newline ? ":\n" : ": ") <<
-		solution << std::endl;
+public:
+	//Format and print a single solution to a code jam.
+	bool print_case(const Solution& solution, unsigned index,
+		std::ostream& ostr)
+	{
+		if(ostr.good())
+			ostr << "Case #" << index + 1 <<
+			(INSERT_NEWLINE ? ":\n" : ": ") <<
+			solution << std::endl;
 
-	return !ostr.good();
-}
+		return !ostr.good();
+	}
 
-/*
- * Solve a generic code jam. For each case in num_cases, solver is called, and
- * the return value is formatted and printed as a code jam solution to ostr.
- * If insert_newline is true, a newline is printed before each solution.
- */
-template<class Solver>
-void generic_solve_code_jam(Solver&& solver, unsigned num_cases,
-	std::ostream& ostr, bool insert_newline=false)
-{
-	for(unsigned case_index = 0; case_index < num_cases; ++case_index)
-		if(print_case(solver(), case_index, ostr, insert_newline))
-			return;
-}
+	virtual unsigned pre_solve(Tokens& tokens)
+	{
+		return tokens.next_token<unsigned>();
+	}
 
-/*
- * Solve a standard code jam. The first token is read off the input stream,
- * and used as the number of test cases. For each case, solver is called with
- * the created Tokens object, and the result is formatted and printed to ostr.
- * If insert_newline is true, a newline is printed before each solution.
- */
-template<class Solver>
-void solve_code_jam(Solver&& solver, std::istream& istr, std::ostream& ostr,
-	bool insert_newline=false)
-{
-	Tokens tokens(istr);
+	virtual Solution solve_case(Tokens& tokens) const =0;
 
-	generic_solve_code_jam([&solver, &tokens] { return solver(tokens); },
-		tokens.next_token<unsigned>(), ostr, insert_newline);
-}
+public:
+	/*
+	 * Solve a code jam from an input stream, writing the results to an output
+	 * stream.
+	 */
+	virtual void solve_code_jam(std::istream& istr, std::ostream& ostr)
+	{
+		Tokens tokens(istr);
 
-/*
- * Helper function for the AUTOMAIN wrapper. If ifile and/or ofile are given,
- * they are opened as files and used instead of cin and cout.
- */
-template<class Solver>
-void automain(Solver&& solver, const char* ifile, const char* ofile,
-	bool insert_newline=false)
-{
-	std::ifstream istr;
-	if(ifile)
-		istr.open(ifile);
+		const unsigned num_cases = pre_solve(tokens);
 
-	std::ofstream ostr;
-	if(ofile)
-		istr.open(ofile);
+		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
+			if(print_case(solve_case(tokens), case_index, ostr))
+				return;
+	}
 
-	solve_code_jam(
-		solver,
-		istr.is_open() ? istr : std::cin,
-		ostr.is_open() ? ostr : std::cout,
-		insert_newline);
-}
 
-#define _AUTOMAIN(SOLVER, INSERT_NEWLINE) \
-int main(int argc, char const *argv[]) \
-{ automain((SOLVER), argc > 1 ? argv[1] : nullptr, argc > 2 ? argv[2] : nullptr, (INSERT_NEWLINE)); }
+	/*
+	 * Solve a code jam using filenames. If either or both of the arguments are
+	 * null, they default to cin and cout, respectively.
+	 */
+	void solve_files(const char* ifile, const char* ofile)
+	{
+		std::ifstream istr;
+		if(ifile)
+			istr.open(ifile);
+
+		std::ofstream ostr;
+		if(ofile)
+			ostr.open(ofile);
+
+		solve_code_jam(
+			istr.is_open() ? istr : std::cin,
+			ostr.is_open() ? ostr : std::cout);
+	}
+};
+
+#define _SOLVER(BASE, SOLUTION_TYPE, BODY) \
+class Solver : public BASE<SOLUTION_TYPE> { SOLUTION_TYPE solve_case(Tokens& tokens) const override BODY }
+
+// Create a class called Solver with solve_case being the given body
+#define SOLVER(SOLUTION_TYPE, BODY) _SOLVER(CodeJamSolver, SOLUTION_TYPE, BODY)
 
 /*
  * Add this macro at the bottom of your source file, with the name of your
- * solver function or object. The code jam is solved as a standard code jam,
- * using solve_code_jam, with this object. Input is taken from the first file
- * argument, or stdin, and Output is written to the second file argument, or
- * stdout. Use AUTOMAIN_NEWLINE to print a newline before each solution.
+ * solver function or object. This macro creates a main function which solves
+ * the code jam using solve_code_jam, with this object. Input is taken from the
+ * first file command line argument, or stdin, and output is written to the
+ * second file command line argument, or stdout. Use MAIN_NEWLINE to print
+ * a newline before each solution.
  */
-#define AUTOMAIN(SOLVER) _AUTOMAIN((SOLVER), false)
-
-#define AUTOMAIN_NEWLINE(SOLVER) _AUTOMAIN((SOLVER), true)
+#define MAIN(CLASS) \
+int main(int argc, char const *argv[]) \
+{ CLASS solver; solver.solve_files(argc > 1 ? argv[1] : nullptr, argc > 2 ? argv[2] : nullptr); }
