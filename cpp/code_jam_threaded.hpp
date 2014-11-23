@@ -16,19 +16,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
-This is a multithreaded C++ implementation of the code jam helper. Provides the
-solve_code_jam_multithreaded function, which takes an istream, ostream, and
-solver function. One thread is created per test case, and the solver function
-is called once per thread with a Tokens object and a locked std::mutex. The
-solver function should unlock the mutex once it is done reading tokens, to allow
-other threads to proceed. Correct order of output is handled automatically.
+This is a multithreaded C++ implementation of the code jam helper. Provides
+the ThreadedCodeJamSolver class, which functions identically to the
+CodeJamSolver class, except that it solves each case in a separate thread. It
+automatically handles the ordering of token input to each case and solution
+output. The solve_case function must call tokens.done() to signal the next
+thread to begin reading tokens.
 */
 
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <vector>
-#include <utility>
 
 #include "code_jam.hpp"
 
@@ -59,7 +58,7 @@ class ThreadedCodeJamSolver : public CodeJamSolver<Solution>
 private:
 	std::mutex print_mutex;
 	std::condition_variable print_cond;
-	unsigned next_print;
+	unsigned next_print = 0;
 
 	void ordered_print(const Solution& solution, const unsigned index,
 		std::ostream& ostr)
@@ -86,15 +85,12 @@ private:
 		// Load up synchronized tokens
 		ThreadedTokens tokens(istr);
 
-		//Presolve
+		// Presolve
 		const unsigned num_cases = this->pre_solve(tokens);
 
-		//Reserve memory for threads
+		// Reserve memory for threads
 		std::vector<std::thread> threads;
 		threads.reserve(num_cases);
-
-		// Reset printing
-		next_print = 0;
 
 		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
 		{
