@@ -121,4 +121,5 @@ private:
 	}
 };
 
+// Create a class called Solver with solve_case being the given body with many threads
 #define SOLVER_MULTITHREADED(SOLUTION_TYPE, BODY) _SOLVER(ThreadedCodeJamSolver, SOLUTION_TYPE, BODY)
