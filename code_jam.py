@@ -135,7 +135,6 @@ def _smart_open(filename, *args, **kwargs):
     else:
         yield filename
 
-
 def autosolve(func=None, *, insert_newline=False):
     '''
     Decorator to immediatly solve a code jam with a function. It should
