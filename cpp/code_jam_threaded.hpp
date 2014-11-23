@@ -111,7 +111,8 @@ private:
 				 * and the ordered print ensures that output happens in the
 				 * right order.
 				 */
-				ordered_print(this->solve_case(tokens), case_index, ostr);
+				auto solution = this->solve_case(tokens);
+				ordered_print(solution, case_index, ostr);
 			});
 		}
 
