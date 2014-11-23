@@ -92,6 +92,9 @@ private:
 		std::vector<std::thread> threads;
 		threads.reserve(num_cases);
 
+		// Reset printing
+		next_print = 0;
+
 		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
 		{
 			/*
