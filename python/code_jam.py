@@ -20,11 +20,8 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting.
 '''
 
-from sys import stdin, stdout
 from signal import signal, SIGPIPE, SIG_DFL
-from argparse import ArgumentParser
 from contextlib import contextmanager
-from inspect import isgeneratorfunction
 
 # Set this variable to true in your code to force printing newlines between
 # "Case #" and the solution itself
@@ -71,9 +68,9 @@ def print_cases(solutions, ostr):
     '''
     Format and print the solutions of a code jam to the file object `ostr`.
     `solutions` should be an ordered iterable of solutions. Prints using the
-    standard "Case #1: X" formatting. If insert_newline is True, a newline is
-    printed before each solution. The solution is printed with the standard
-    print functions, so any stringable type is fine.
+    standard "Case #1: X" formatting. If code_jam.INSERT_NEWLINE is True, a
+    newline is printed before each solution. The solution is printed with the
+    standard print functions, so any stringable type is fine.
 
     This function silently stops and returns in the event of a BrokenPipeError
     from either the input or output file.
@@ -100,8 +97,11 @@ def generator_solve_code_jam(solver, istr, ostr):
     outputted via a normal print, so returning strings, ints, or other
     printable types is fine.
 
-    This function also silently returns in the event of a BrokenPipeError from
+    This function silently returns in the event of a BrokenPipeError from
     either the input or output file.
+
+    Output is unconditionally flushed on every solution. This is to enable
+    real-time output even when in a pipeline, such as with head or tee.
     '''
 
     return print_cases(solver(Tokens(istr)), ostr)
@@ -109,11 +109,17 @@ def generator_solve_code_jam(solver, istr, ostr):
 
 def solve_code_jam(solver, istr, ostr):
     '''
-    For a code jam where the first token is the number of cases, this function
-    prints the solution to the file object `ostr`, given an input file object
-    `istr`. In this variant, the solver is a function which is called with a
-    Tokens object and returns a single solution. This is the most typical use
-    case, as most code jams don't need to share any data.
+    For a typical, code jam where the first token is the number of cases, this
+    function prints the solution to the code to the file object `ostr`, given
+    an input file object `istr`. `solver` should be a function that takes a
+    Tokens object and returns the solution to a single test case.
+    `solve_code_jam` reads the first token to determine the number of cases,
+    then calls solver repeatedly to get each solution. This is the most common
+    use case, as most code jams don't share any data between test cases.
+
+    Like the other wrappers, this function silently returns in the event of a
+    BrokenPipeError from either the input or output file, and flushes the
+    output for each case.
     '''
     def solve(tokens):
         for _ in range(tokens.next_token(int)):
@@ -122,11 +128,11 @@ def solve_code_jam(solver, istr, ostr):
     return generator_solve_code_jam(solve, istr, ostr)
 
 @contextmanager
-def _smart_open(filename, *args, **kwargs):
+def smart_open(filename, *args, **kwargs):
     '''
-    Context manager to open and close a file. If the filename argument isn't a
-    string (for instance, if you pass stdin or stdout), it returns the object
-    directly.
+    Context manager to open and close a file, or default to a file object. If
+    the filename argument isn't a string (for instance, if you pass stdin or
+    stdout), it yields the object directly.
     '''
     if isinstance(filename, str):
         with open(filename, *args, **kwargs) as f:
@@ -136,16 +142,16 @@ def _smart_open(filename, *args, **kwargs):
 
 def autosolve(solver):
     '''
-    Decorator to immediatly solve a code jam with a function. It should
-    decorate a function which, when called with a Tokens object, returns a
-    solution to a single test case. The code jam is then immediatly solved
-    by assuming the first token is the number of test cases, and repeatedly
-    calling the decorated function to retreive solutions. Doesn't respect
-    __name__ == '__main__'.
+    Decorator to immediatly solve a code jam with a function when the file is
+    run as a script. It should decorate a function which, when called with a
+    Tokens object, returns a solution to a single test case. The code jam is
+    then immediatly solved by assuming the first token is the number of test
+    cases, and repeatedly calling the decorated function to retreive solutions.
+    Doesn't respect __name__ == '__main__'.
 
     If the decorated function is a generator, the behavior is slightly diffent.
-    The generator is called with the tokens object, and each yielded solution is
-    printed. The generator is responsible for yielding the correct number of
+    The generator is called with the Tokens object, and each yielded solution
+    is printed. The generator is responsible for yielding the correct number of
     solutions.
 
     autosolve also collects filenames from sys.argv. The first command line
@@ -154,6 +160,11 @@ def autosolve(solver):
 
     The decorated function is returned unchanged.
     '''
+
+    from sys import stdin, stdout
+    from argparse import ArgumentParser
+    from inspect import isgeneratorfunction
+
     parser = ArgumentParser()
     parser.add_argument('in_file', nargs='?', default=stdin,
         help="The input file to use. Defaults to stdin")
@@ -161,8 +172,8 @@ def autosolve(solver):
         help="The file to write the solutions to. Defaults to stdout.")
     args = parser.parse_args()
 
-    with _smart_open(args.in_file, 'r', encoding='ascii') as istr:
-        with _smart_open(args.out_file, 'w', encoding='ascii') as ostr:
+    with smart_open(args.in_file, 'r', encoding='ascii') as istr:
+        with smart_open(args.out_file, 'w', encoding='ascii') as ostr:
             if isgeneratorfunction(solver):
                 generator_solve_code_jam(solver, istr, ostr)
             else:
