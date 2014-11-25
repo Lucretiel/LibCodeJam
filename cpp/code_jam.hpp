@@ -15,14 +15,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include <type_traits>
 
 /*
- * In your .cpp file, override this with true before #including this file if
- * you want to insert newlines between the Case# and the actual solutions
- */
+In your .cpp file, override this with true before #including this file if
+you want to insert newlines between the Case# and the actual solutions
+*/
 #ifndef INSERT_NEWLINE
 #define INSERT_NEWLINE false
 #endif
@@ -38,10 +40,10 @@ public:
 	{}
 
 	/*
-	 * Get and return a single token. Useful for storing const data. The return
-	 * type removes const-qualifiers so that the return value can be used to
-	 * move construct a type
-	 */
+	Get and return a single token. Useful for storing const data. The return
+	type removes const-qualifiers so that the return value can be used to
+	move construct a type
+	*/
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
 	{
@@ -51,14 +53,14 @@ public:
 	}
 
 	/*
-	 * Quick macro to create an object of type TYPE and initialize it with
-	 * next_token
+	Quick macro to create an object of type TYPE and initialize it with
+	next_token
 	 */
 	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
 
 	/*
-	 * Fill 1 or more variables of arbitrary type with tokens, in order.
-	 */
+	Fill 1 or more variables of arbitrary type with tokens, in order.
+	*/
 	template<class T, class... Rest>
 	inline void load_tokens(T& t, Rest&... rest)
 	{
@@ -69,9 +71,7 @@ public:
 	inline void load_tokens()
 	{}
 
-	/*
-	 * Fill a container with tokens
-	 */
+	// Fill a container with tokens
 	template<class Container>
 	void next_many_tokens(Container& container)
 	{
@@ -79,22 +79,20 @@ public:
 			stream() >> i;
 	}
 
-	/*
-	 * Insert n tokens into an input iterator
-	 */
+	// Insert n tokens into an input iterator
 	template<class Iterator>
 	void next_many_tokens(Iterator it, unsigned n)
 	{
 		for(unsigned i = 0; i < n; ++i, ++it)
-			// Use assignment instead of "stream() >>"" to allow for
-			// back_inserter and other funky iterators
+			/*
+			Use assignment instead of "stream() >>"" to allow for back_inserter
+			and other funky iterators
+			*/
 			*it = next_token<
 				typename std::iterator_traits<Iterator>::value_type>();
 	}
 
-	/*
-	 * Read a token n, then insert n tokens into an input iterator
-	 */
+	// Read a token n, then insert n tokens into an input iterator
 	template<class Iterator>
 	void next_counted_tokens(Iterator it)
 	{
@@ -102,15 +100,15 @@ public:
 	}
 
 	/*
-	 * Access to the underlying stream, for other input operations the user may
-	 * want.
-	 */
+	Access to the underlying stream, for other input operations the user may
+	want.
+	*/
 	std::istream& stream() { return *istr; }
 
 	/*
-	 * For a hypothetcial threaded version, this function should be called to
-	 * signal that the next thread may begin reading tokens
-	 */
+	For the threaded version, this function should be called to signal that the
+	next thread may begin reading tokens
+	*/
 
 	virtual void done() {};
 };

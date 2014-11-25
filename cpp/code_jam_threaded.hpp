@@ -24,6 +24,8 @@ output. The solve_case function must call tokens.done() to signal the next
 thread to begin reading tokens.
 */
 
+#pragma once
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -98,19 +100,19 @@ private:
 		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
 		{
 			/*
-			 * Lock for a new test case. The test case must call done, allowing
-			 * future threads to be spawned. case_index is captured by value,
-			 * so that each thread has its own fixed index.
-			 */
+			Lock for a new test case. The test case must call done, allowing
+			future threads to be spawned. case_index is captured by value,
+			so that each thread has its own fixed index.
+			*/
 			tokens.start_case();
 			threads.emplace_back([this, case_index, &tokens, &ostr]
 			{
 				/*
-				 * Solve and print the case in this thread. The solver must
-				 * call tokens.done() to allow future threads to be spawned,
-				 * and the ordered print ensures that output happens in the
-				 * right order.
-				 */
+				Solve and print the case in this thread. The solver must
+				call tokens.done() to allow future threads to be spawned,
+				and the ordered print ensures that output happens in the
+				right order.
+				*/
 				auto solution = this->solve_case(tokens);
 				ordered_print(solution, case_index, ostr);
 			});
