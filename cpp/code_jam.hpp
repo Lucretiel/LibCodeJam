@@ -55,7 +55,13 @@ public:
 
 	/*
 	Quick macro to create an object of type TYPE and initialize it with
-	next_token
+	next_token from the Tokens object called tokens. For instance:
+
+		const int foo = tokens.next_token<int>();
+
+	is the same as:
+
+		TOKEN(const int, foo);
 	 */
 	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
 
