@@ -114,13 +114,15 @@ public:
 };
 
 /*
- * This class solves a whole code jam. Users should implement solve_case and,
- * if necessary, pre_solve. solve_code_jam is made virtual so that
- */
+This class solves a whole code jam. Users should implement solve_case, which is
+called for each test case. They may also implement pre_solve, which is called
+once, before the individual cases. If pre_solve is implemented, it should
+return the number of test cases.
+*/
 template<class Solution>
 class CodeJamSolver
 {
-public:
+protected:
 	//Format and print a single solution to a code jam.
 	bool print_case(const Solution& solution, unsigned index,
 		std::ostream& ostr)
@@ -142,9 +144,9 @@ public:
 
 public:
 	/*
-	 * Solve a code jam from an input stream, writing the results to an output
-	 * stream.
-	 */
+	Solve a code jam from an input stream, writing the results to an output
+	stream.
+	*/
 	virtual void solve_code_jam(std::istream& istr, std::ostream& ostr)
 	{
 		Tokens tokens(istr);
@@ -158,9 +160,9 @@ public:
 
 
 	/*
-	 * Solve a code jam using filenames. If either or both of the arguments are
-	 * null, they default to cin and cout, respectively.
-	 */
+	Solve a code jam using filenames. If either or both of the arguments are
+	null, they default to cin and cout, respectively.
+	*/
 	void solve_files(const char* ifile, const char* ofile)
 	{
 		std::ifstream istr;
@@ -184,13 +186,12 @@ class Solver : public BASE<SOLUTION_TYPE> { SOLUTION_TYPE solve_case(Tokens& tok
 #define SOLVER(SOLUTION_TYPE, BODY) _SOLVER(CodeJamSolver, SOLUTION_TYPE, BODY)
 
 /*
- * Add this macro at the bottom of your source file, with the name of your
- * solver function or object. This macro creates a main function which solves
- * the code jam using solve_code_jam, with this object. Input is taken from the
- * first file command line argument, or stdin, and output is written to the
- * second file command line argument, or stdout. Use MAIN_NEWLINE to print
- * a newline before each solution.
- */
+Add this macro at the bottom of your source file, with the name of your
+solver class. This macro creates a main function which solves the code jam
+using solve_files, with this class. Input is taken from first file command
+line argument, or stdin, and output is written to the second file command
+line argument, or stdout.
+*/
 #define MAIN(CLASS) \
 int main(int argc, char const *argv[]) \
 { CLASS solver; solver.solve_files(argc > 1 ? argv[1] : nullptr, argc > 2 ? argv[2] : nullptr); }
