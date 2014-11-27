@@ -47,8 +47,9 @@ public:
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
 	{
-		typename std::remove_cv<T>::type token;
+		typename std::remove_cv<T>::type token{};
 		stream() >> token;
+		// Return a non-const to allow move construction from the return value.
 		return token;
 	}
 
