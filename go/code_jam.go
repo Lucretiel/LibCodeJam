@@ -38,7 +38,7 @@ func print_case(solution interface{}, case_index uint, ostr io.Writer) bool {
 func solve_code_jam(CodeJamSolver solver, istr io.Reader, ostr io.Writer) {
 	tokens := Tokens{istr}
 
-	num_cases := solver.pre_solve(tokens)
+	const num_cases := solver.pre_solve(tokens)
 
 	solutions := make(chan (<- chan interface{}), num_cases)
 
@@ -48,7 +48,7 @@ func solve_code_jam(CodeJamSolver solver, istr io.Reader, ostr io.Writer) {
 		for i := 0; i < num_cases; ++i {
 			solutions <- solver.solve_code_jam(tokens)
 		}
-	}
+	}()
 
 	// Loop over the result channels, printing the solutions they contain
 	for i, c := range solutions {
