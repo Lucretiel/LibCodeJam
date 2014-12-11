@@ -134,7 +134,7 @@ def smart_open(filename, *args, **kwargs):
     the filename argument isn't a string (for instance, if you pass stdin or
     stdout), it yields the object directly.
     '''
-    if isinstance(filename, str):
+    if isinstance(filename, (str, bytes, int)):
         with open(filename, *args, **kwargs) as f:
             yield f
     else:
