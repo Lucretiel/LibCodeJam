@@ -55,7 +55,7 @@ public:
 
 	/*
 	Quick macro to create an object of type TYPE and initialize it with
-	next_token
+	next_token. Assumes the Tokens instance is called tokens.
 	 */
 	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
 
