@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <iostream>
-#include <fstream>
+#include <type_traits>
 
 /*
 In your .cpp file, override this with true before #including this file if
@@ -107,11 +107,13 @@ public:
 
 	// Fancy macro interface
 	#define NEXT(TYPE) tokens.next_token<TYPE>()
-	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
 	#define LOAD(...) tokens.load_tokens(__VA_ARGS__)
 	#define FILL(CONTAINER) tokens.next_many_tokens(CONTAINER)
-	#define STREAM tokens.stream()
+	#define FILL_IT(ITERATOR, N) tokens.next_many_tokens(ITERATOR, N)
+	#define COUNTED(ITERATOR) tokens.next_many_tokens(ITERATOR)
 	#define DONE() tokens.done()
+
+	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
 };
 
 /*
@@ -129,17 +131,15 @@ public:
 	}
 };
 
-// Print a single solution. Returns !ostr.good after printing.
+// Print a single solution.
 template<class Solution>
-inline bool print_case(
+inline void print_case(
 	const Solution& solution,
 	const unsigned case_id,
 	std::ostream& ostr)
 {
 	ostr << "Case #" << case_id + 1 << (INSERT_NEWLINE ? ":\n" : ": ") <<
 		solution << std::endl;
-
-	return !ostr.good();
 }
 
 /*
@@ -154,8 +154,7 @@ inline void solve_code_jam(
 	std::ostream& ostr)
 {
 	for(unsigned c = 0; c < num_cases; ++c)
-		if(print_case(solver.solve_case(tokens), c, ostr))
-			return;
+		print_case(solver.solve_case(tokens), c, ostr);
 }
 
 template<class Solver>
@@ -170,7 +169,7 @@ inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
 
 #define SOLVE_CASE public: inline auto solve_case(Tokens& tokens) const
 
-#define PRE_SOLVE public: inline auto pre_solve(Tokens& tokens)
+#define PRE_SOLVE public: inline unsigned pre_solve(Tokens& tokens)
 
 #define BASIC_SOLVE SOLVER { SOLVE_CASE; }; \
 	inline auto Solver::solve_case(Tokens& tokens) const
