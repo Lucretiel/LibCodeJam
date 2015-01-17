@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <iostream>
-#include <fstream>
-#include <type_traits>
 
 /*
 In your .cpp file, override this with true before #including this file if
@@ -49,23 +47,19 @@ public:
 	{
 		typename std::remove_cv<T>::type token{};
 		stream() >> token;
-		// Return a non-const to allow move construction from the return value.
 		return token;
 	}
 
 	/*
+<<<<<<< HEAD
+=======
 	Quick macro to create an object of type TYPE and initialize it with
-	next_token from the Tokens object called tokens. For instance:
-
-		const int foo = tokens.next_token<int>();
-
-	is the same as:
-
-		TOKEN(const int, foo);
+	next_token. Assumes the Tokens instance is called tokens.
 	 */
 	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
 
 	/*
+>>>>>>> FETCH_HEAD
 	Fill 1 or more variables of arbitrary type with tokens, in order.
 	*/
 	template<class T, class... Rest>
@@ -118,87 +112,76 @@ public:
 	*/
 
 	virtual void done() {};
+
+	// Fancy macro interface
+	#define NEXT(TYPE) tokens.next_token<TYPE>()
+	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
+	#define LOAD(...) tokens.load_tokens(__VA_ARGS__)
+	#define FILL(CONTAINER) tokens.next_many_tokens(CONTAINER)
+	#define STREAM tokens.stream()
+	#define DONE() tokens.done()
 };
 
 /*
-This class solves a whole code jam. Users should implement solve_case, which is
-called for each test case. They may also implement pre_solve, which is called
-once, before the individual cases. If pre_solve is implemented, it should
-return the number of test cases.
+Base class for solvers. The macros defined at the end of the library assist=
+with creating the actual solver class. This class exists primarily to provide
+a default pre_solve implementation; this implementaton is simply shadowed if
+the client provides their own.
 */
-template<class Solution>
-class CodeJamSolver
+class SolverBase
 {
-protected:
-	//Format and print a single solution to a code jam.
-	bool print_case(const Solution& solution, unsigned index,
-		std::ostream& ostr)
-	{
-		if(ostr.good())
-			ostr << "Case #" << index + 1 <<
-			(INSERT_NEWLINE ? ":\n" : ": ") <<
-			solution << std::endl;
-
-		return !ostr.good();
-	}
-
-	virtual unsigned pre_solve(Tokens& tokens)
+public:
+	unsigned pre_solve(Tokens& tokens)
 	{
 		return tokens.next_token<unsigned>();
 	}
-
-	virtual Solution solve_case(Tokens& tokens) const =0;
-
-public:
-	/*
-	Solve a code jam from an input stream, writing the results to an output
-	stream.
-	*/
-	virtual void solve_code_jam(std::istream& istr, std::ostream& ostr)
-	{
-		Tokens tokens(istr);
-
-		const unsigned num_cases = pre_solve(tokens);
-
-		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
-			if(print_case(solve_case(tokens), case_index, ostr))
-				return;
-	}
-
-
-	/*
-	Solve a code jam using filenames. If either or both of the arguments are
-	null, they default to cin and cout, respectively.
-	*/
-	void solve_files(const char* ifile, const char* ofile)
-	{
-		std::ifstream istr;
-		if(ifile)
-			istr.open(ifile);
-
-		std::ofstream ostr;
-		if(ofile)
-			ostr.open(ofile);
-
-		solve_code_jam(
-			istr.is_open() ? istr : std::cin,
-			ostr.is_open() ? ostr : std::cout);
-	}
 };
 
-#define _SOLVER(BASE, SOLUTION_TYPE, BODY) \
-class Solver : public BASE<SOLUTION_TYPE> { SOLUTION_TYPE solve_case(Tokens& tokens) const override BODY }
+// Print a single solution. Returns !ostr.good after printing.
+template<class Solution>
+inline bool print_case(
+	const Solution& solution,
+	const unsigned case_id,
+	std::ostream& ostr)
+{
+	ostr << "Case #" << case_id + 1 << (INSERT_NEWLINE ? ":\n" : ": ") <<
+		solution << std::endl;
 
-// Create a class called Solver with solve_case being the given body
-#define SOLVER(SOLUTION_TYPE, BODY) _SOLVER(CodeJamSolver, SOLUTION_TYPE, BODY)
+	return !ostr.good();
+}
 
 /*
-Add this macro at the bottom of your source file, with the name of your
-solver class. This macro creates a main function which solves the code jam
-using solve_files, with this class. Input is taken from first file command
-line argument, or stdin, and output is written to the second file command
-line argument, or stdout.
+Solve num_cases cases, using a solver. The solver should already have been
+pre_solved
 */
-#define MAIN(CLASS) \
-int main(int argc, char const *argv[]) \
-{ CLASS solver; solver.solve_files(argc > 1 ? argv[1] : nullptr, argc > 2 ? argv[2] : nullptr); }
+
+template<class Solver>
+inline void solve_code_jam(
+	const Solver& solver,
+	const unsigned num_cases,
+	Tokens& tokens,
+	std::ostream& ostr)
+{
+	for(unsigned c = 0; c < num_cases; ++c)
+		if(print_case(solver.solve_case(tokens), c, ostr))
+			return;
+}
+
+template<class Solver>
+inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
+{
+	Tokens tokens(istr);
+	Solver solver;
+	solve_code_jam(solver, solver.pre_solve(tokens), tokens, ostr);
+}
+
+#define SOLVER class Solver : public SolverBase
+
+#define SOLVE_CASE public: inline auto solve_case(Tokens& tokens) const
+
+#define PRE_SOLVE public: inline auto pre_solve(Tokens& tokens)
+
+#define BASIC_SOLVE SOLVER { SOLVE_CASE; }; \
+	inline auto Solver::solve_case(Tokens& tokens) const
+
+#define AUTOSOLVE int main() { solve_code_jam<Solver>(std::cin, std::cout); }

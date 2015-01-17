@@ -30,6 +30,7 @@ thread to begin reading tokens.
 #include <mutex>
 #include <condition_variable>
 #include <vector>
+#include <iostream>
 
 #include "code_jam.hpp"
 
@@ -54,51 +55,60 @@ public:
 	}
 };
 
-template<class Solution>
-class ThreadedCodeJamSolver : public CodeJamSolver<Solution>
+class ThreadedPrinter
 {
-private:
 	std::mutex print_mutex;
 	std::condition_variable print_cond;
 	unsigned next_print = 0;
 
-	void ordered_print(const Solution& solution, const unsigned index,
-		std::ostream& ostr)
+	std::ostream* ostr;
+
+public:
+	ThreadedPrinter(std::ostream& ostr):
+		ostr(&ostr)
+	{}
+
+	template<class Solution>
+	void ordered_print(const Solution& solution, const unsigned case_id)
 	{
 		//Lock for printing
 		std::unique_lock<std::mutex> print_lock(print_mutex);
 
 		//Wait until our turn to print
-		print_cond.wait(print_lock, [this, index]
+		print_cond.wait(print_lock, [this, case_id]
 		{
-			return index == next_print;
+			return case_id == next_print;
 		});
 
 		//Print result
-		this->print_case(solution, index, ostr);
+		print_case(solution, case_id, *ostr);
 
 		//Increment print counter and signal next thread
 		++next_print;
 		print_cond.notify_all();
 	}
+};
 
-	void solve_code_jam(std::istream& istr, std::ostream& ostr) override
+template<class Solver>
+inline void threaded_solve_code_jam(
+	const Solver& solver,
+	const unsigned num_cases,
+	ThreadedTokens& tokens,
+	std::ostream& ostr)
+{
+	ThreadedPrinter printer(ostr);
+	std::vector<std::thread> threads;
+	threads.reserve(num_cases);
+
+	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
-		// Load up synchronized tokens
-		ThreadedTokens tokens(istr);
-
-		// Presolve
-		const unsigned num_cases = this->pre_solve(tokens);
-
-		// Reserve memory for threads
-		std::vector<std::thread> threads;
-		threads.reserve(num_cases);
-
-		// Reset printing
-		next_print = 0;
-
-		for(unsigned case_index = 0; case_index < num_cases; ++case_index)
+		tokens.start_case();
+		threads.emplace_back([&solver, &tokens, &printer, case_id]
 		{
+<<<<<<< HEAD
+			printer.ordered_print(solver.solve_case(tokens), case_id);
+		});
+=======
 			/*
 			Lock for a new test case. The test case must call done, allowing
 			future threads to be spawned. case_index is captured by value,
@@ -113,15 +123,25 @@ private:
 				and the ordered print ensures that output happens in the
 				right order.
 				*/
-				auto solution = this->solve_case(tokens);
-				ordered_print(solution, case_index, ostr);
+				ordered_print(this->solve_case(tokens), case_index, ostr);
 			});
 		}
 
 		for(auto& thread : threads)
 			thread.join();
+>>>>>>> FETCH_HEAD
 	}
-};
 
-// Create a class called Solver with solve_case being the given body with many threads
-#define SOLVER_MULTITHREADED(SOLUTION_TYPE, BODY) _SOLVER(ThreadedCodeJamSolver, SOLUTION_TYPE, BODY)
+	for(auto& thread : threads)
+		thread.join();
+}
+
+template<class Solver>
+inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
+{
+	ThreadedTokens tokens(istr);
+	Solver solver;
+	threaded_solve_code_jam(solver, solver.pre_solve(tokens), tokens, ostr);
+}
+
+#define THREADED_AUTOSOLVE int main() { threaded_solve_code_jam<Solver>(std::cin, std::cout); }
