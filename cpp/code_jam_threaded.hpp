@@ -105,31 +105,8 @@ inline void threaded_solve_code_jam(
 		tokens.start_case();
 		threads.emplace_back([&solver, &tokens, &printer, case_id]
 		{
-<<<<<<< HEAD
 			printer.ordered_print(solver.solve_case(tokens), case_id);
 		});
-=======
-			/*
-			Lock for a new test case. The test case must call done, allowing
-			future threads to be spawned. case_index is captured by value,
-			so that each thread has its own fixed index.
-			*/
-			tokens.start_case();
-			threads.emplace_back([this, case_index, &tokens, &ostr]
-			{
-				/*
-				Solve and print the case in this thread. The solver must
-				call tokens.done() to allow future threads to be spawned,
-				and the ordered print ensures that output happens in the
-				right order.
-				*/
-				ordered_print(this->solve_case(tokens), case_index, ostr);
-			});
-		}
-
-		for(auto& thread : threads)
-			thread.join();
->>>>>>> FETCH_HEAD
 	}
 
 	for(auto& thread : threads)
