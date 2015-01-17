@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <iostream>
+#include <fstream>
 
 /*
 In your .cpp file, override this with true before #including this file if
@@ -51,15 +52,6 @@ public:
 	}
 
 	/*
-<<<<<<< HEAD
-=======
-	Quick macro to create an object of type TYPE and initialize it with
-	next_token. Assumes the Tokens instance is called tokens.
-	 */
-	#define TOKEN(TYPE, NAME) TYPE NAME{tokens.next_token<TYPE>()}
-
-	/*
->>>>>>> FETCH_HEAD
 	Fill 1 or more variables of arbitrary type with tokens, in order.
 	*/
 	template<class T, class... Rest>
@@ -154,7 +146,6 @@ inline bool print_case(
 Solve num_cases cases, using a solver. The solver should already have been
 pre_solved
 */
-
 template<class Solver>
 inline void solve_code_jam(
 	const Solver& solver,
