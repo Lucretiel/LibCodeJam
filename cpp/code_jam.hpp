@@ -38,7 +38,11 @@ public:
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
 	{
-		typename std::remove_cv<T>::type token;
+		typedef typename std::remove_cv<T>::type MutableT;
+		static_assert(!std::is_reference<MutableT>::value,
+			"next_token cannot get a reference type");
+
+		MutableT token;
 		stream() >> token;
 		return token;
 	}
