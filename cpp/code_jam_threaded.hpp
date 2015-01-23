@@ -71,54 +71,51 @@ public:
 	template<class Solution>
 	void ordered_print(const Solution& solution, const unsigned case_id)
 	{
-		//Lock for printing
-		std::unique_lock<std::mutex> print_lock(print_mutex);
-
-		//Wait until our turn to print
-		print_cond.wait(print_lock, [this, case_id]
 		{
-			return case_id == next_print;
-		});
+			// Lock for printing
+			std::unique_lock<std::mutex> print_lock(print_mutex);
 
-		//Print result
-		print_case(solution, case_id, *ostr);
+			// Wait until our turn to print
+			print_cond.wait(print_lock, [this, case_id]
+			{
+				return case_id == next_print;
+			});
 
-		//Increment print counter and signal next thread
-		++next_print;
+			// Print result
+			print_case(solution, case_id, *ostr);
+
+			// Increment print counter and signal next thread
+			++next_print;
+		}
 		print_cond.notify_all();
 	}
 };
 
 template<class Solver>
-inline void threaded_solve_code_jam(
-	const Solver& solver,
-	const unsigned num_cases,
-	ThreadedTokens& tokens,
-	std::ostream& ostr)
+inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 {
+	ThreadedTokens tokens(istr);
 	ThreadedPrinter printer(ostr);
+
+	Solver solver;
+	const Solver& c_solver = solver;
+
 	std::vector<std::thread> threads;
 	threads.reserve(num_cases);
+
+	const unsigned num_cases = solver.pre_solve(tokens);
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
 		tokens.start_case();
-		threads.emplace_back([&solver, &tokens, &printer, case_id]
+		threads.emplace_back([&c_solver, &tokens, &printer, case_id]
 		{
-			printer.ordered_print(solver.solve_case(tokens), case_id);
+			printer.ordered_print(c_solver.solve_case(tokens), case_id);
 		});
 	}
 
 	for(auto& thread : threads)
 		thread.join();
-}
-
-template<class Solver>
-inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
-{
-	ThreadedTokens tokens(istr);
-	Solver solver;
-	threaded_solve_code_jam(solver, solver.pre_solve(tokens), tokens, ostr);
 }
 
 #define THREADED_AUTOSOLVE int main() { threaded_solve_code_jam<Solver>(std::cin, std::cout); }
