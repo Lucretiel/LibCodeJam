@@ -20,14 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <type_traits>
 
-/*
-In your .cpp file, override this with true before #including this file if
-you want to insert newlines between the Case# and the actual solutions
-*/
-#ifndef INSERT_NEWLINE
-#define INSERT_NEWLINE false
-#endif
-
 class Tokens
 {
 private:
@@ -46,7 +38,7 @@ public:
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
 	{
-		typename std::remove_cv<T>::type token{};
+		typename std::remove_cv<T>::type token;
 		stream() >> token;
 		return token;
 	}
@@ -127,42 +119,37 @@ class SolverBase
 public:
 	unsigned pre_solve(Tokens& tokens)
 	{
-		return tokens.next_token<unsigned>();
+		return NEXT(unsigned);
 	}
 };
 
-// Print a single solution.
+#ifndef INSERT_NEWLINE
+#define SEP ": "
+#else
+#define SEP ":\n"
+#endif
+
 template<class Solution>
 inline void print_case(
 	const Solution& solution,
 	const unsigned case_id,
 	std::ostream& ostr)
 {
-	ostr << "Case #" << case_id + 1 << (INSERT_NEWLINE ? ":\n" : ": ") <<
-		solution << std::endl;
+	ostr << "Case #" << case_id + 1 << SEP << solution << std::endl;
 }
 
-/*
-Solve num_cases cases, using a solver. The solver should already have been
-pre_solved
-*/
-template<class Solver>
-inline void solve_code_jam(
-	const Solver& solver,
-	const unsigned num_cases,
-	Tokens& tokens,
-	std::ostream& ostr)
-{
-	for(unsigned c = 0; c < num_cases; ++c)
-		print_case(solver.solve_case(tokens), c, ostr);
-}
+#undef SEP
 
 template<class Solver>
 inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
 {
 	Tokens tokens(istr);
 	Solver solver;
-	solve_code_jam(solver, solver.pre_solve(tokens), tokens, ostr);
+	const Solver& c_solver = solver;
+	const unsigned num_cases = solver.pre_solve(tokens);
+
+	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
+		print_case(c_solver.solve_case(tokens), case_id, ostr);
 }
 
 #define SOLVER class Solver : public SolverBase
