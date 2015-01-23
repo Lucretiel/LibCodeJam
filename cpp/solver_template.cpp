@@ -1,11 +1,26 @@
-//#define INSERT_NEWLINE true
+/*
+This code jam solution is powered by Nathan West's LibCodeJam; see
+https://github.com/Lucretiel/LibCodeJam for source code and (ostensibly) some
+documentation.
+*/
+
+/*
+Uncomment if you want a newline between the "Case #" and the actual solution:
+
+    Case #1: solution
+vs
+	Case #1:
+	solution
+
+*/
+//#define INSERT_NEWLINE
 
 #include "LibCodeJam/cpp/code_jam.hpp"
 
 /*
 SOLVER creates a class which stores any data that needs to be shared between
 cases. PRE_SOLVE initializes the data, and SOLVE_CASE solves the individual
-cases.
+cases. AUTOSOLVE uses the class to solve the code jam.
 */
 SOLVER
 {
@@ -23,10 +38,10 @@ SOLVER
 	}
 
 	/*
-	Your solution goes here. BASIC_SOLVE creates a function which solves a single
-	code jam case, which is invoked by AUTOSOLVE. The return type is deduced
-	automagially. The function is passed a Tokens object called tokens; see also
-	the macro interface for quick use of this object. This function is declared
+	Your solution goes here. SOLVE_CASE creates a membrer function which solves
+	a single code jam case. The return type is deduced automatically. The
+	function is passed a Tokens object called Tokens; see also the Tokens macro
+	interface for quick use of this object. This function is declared
 	const; it cannot modify any class members while it is running.
 	*/
 	SOLVE_CASE
