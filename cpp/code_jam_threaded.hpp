@@ -16,12 +16,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
-This is a multithreaded C++ implementation of the code jam helper. Provides
-the ThreadedCodeJamSolver class, which functions identically to the
-CodeJamSolver class, except that it solves each case in a separate thread. It
-automatically handles the ordering of token input to each case and solution
-output. The solve_case function must call tokens.done() to signal the next
-thread to begin reading tokens.
+This is a multithreaded C++ implementation of the code jam solver. Provides
+the threaded_solve_code_jam function, which solves jams in exactly the same way
+as solve_code_jam, but solves each case in a separate thread. It automatically
+handles ordering of input and output; the solver function must call
+tokens.done() or DONE() to signal the next thread to begin reading tokens.
+
+It provides the THREADED_AUTOSOLVE macro. Simply use this macro at the end of
+your solution source file, instead of AUTOSOLVE, to use the multithreaded
+solver. No other changes are needed.
 */
 
 #pragma once
@@ -64,7 +67,7 @@ class ThreadedPrinter
 	std::ostream* ostr;
 
 public:
-	ThreadedPrinter(std::ostream& ostr):
+	explicit ThreadedPrinter(std::ostream& ostr):
 		ostr(&ostr)
 	{}
 
@@ -98,7 +101,6 @@ inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 	ThreadedPrinter printer(ostr);
 
 	Solver solver;
-	const Solver& c_solver = solver;
 
 	std::vector<std::thread> threads;
 	threads.reserve(num_cases);
@@ -108,9 +110,9 @@ inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
 		tokens.start_case();
-		threads.emplace_back([&c_solver, &tokens, &printer, case_id]
+		threads.emplace_back([&solver, &tokens, &printer, case_id]
 		{
-			printer.ordered_print(c_solver.solve_case(tokens), case_id);
+			printer.ordered_print(solver.solve_case(tokens), case_id);
 		});
 	}
 
