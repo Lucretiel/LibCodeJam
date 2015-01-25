@@ -33,7 +33,7 @@ public:
 	/*
 	Get and return a single token. Useful for storing const data. The return
 	type removes const-qualifiers so that the return value can be used to
-	move construct a type
+	move construct a type.
 	*/
 	template<class T>
 	typename std::remove_cv<T>::type next_token()
@@ -110,6 +110,7 @@ public:
 	#define DONE() tokens.done()
 
 	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
+	#define C_TOKEN(TYPE, NAME) TYPE const NAME { NEXT(TYPE) }
 };
 
 /*
@@ -127,33 +128,29 @@ public:
 	}
 };
 
-#ifndef INSERT_NEWLINE
-#define SEP ": "
-#else
-#define SEP ":\n"
-#endif
-
 template<class Solution>
 inline void print_case(
 	const Solution& solution,
 	const unsigned case_id,
 	std::ostream& ostr)
 {
-	ostr << "Case #" << case_id + 1 << SEP << solution << std::endl;
+#ifndef INSERT_NEWLINE
+	ostr << "Case #" << case_id + 1 << ": " << solution << std::endl;
+#else
+	ostr << "Case #" << case_id + 1 << ":\n" << solution << std::endl;
+#endif
 }
 
-#undef SEP
 
 template<class Solver>
 inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
 {
 	Tokens tokens(istr);
 	Solver solver;
-	const Solver& c_solver = solver;
 	const unsigned num_cases = solver.pre_solve(tokens);
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
-		print_case(c_solver.solve_case(tokens), case_id, ostr);
+		print_case(solver.solve_case(tokens), case_id, ostr);
 }
 
 #define SOLVER class Solver : public SolverBase
