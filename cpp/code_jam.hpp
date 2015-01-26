@@ -110,7 +110,7 @@ public:
 	#define DONE() tokens.done()
 
 	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
-	#define C_TOKEN(TYPE, NAME) TOKE(TYPE const, NAME)
+	#define C_TOKEN(TYPE, NAME) TOKEN(TYPE const, NAME)
 };
 
 /*
