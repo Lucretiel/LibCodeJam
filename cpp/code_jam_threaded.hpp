@@ -101,11 +101,10 @@ inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 	ThreadedPrinter printer(ostr);
 
 	Solver solver;
+	const unsigned num_cases = solver.pre_solve(tokens);
 
 	std::vector<std::thread> threads;
 	threads.reserve(num_cases);
-
-	const unsigned num_cases = solver.pre_solve(tokens);
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
 	{
