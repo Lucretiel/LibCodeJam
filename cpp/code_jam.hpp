@@ -109,8 +109,12 @@ public:
 	#define COUNTED(ITERATOR) tokens.next_many_tokens(ITERATOR)
 	#define DONE() tokens.done()
 
-	#define TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
-	#define C_TOKEN(TYPE, NAME) TOKEN(TYPE const, NAME)
+	#define MUT_TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
+	#define TOKEN(TYPE, NAME) MUT_TOKEN(TYPE const, NAME)
+	
+	#define TOK_INT(NAME) TOKEN(long, NAME)
+	#define TOK_UINT(NAME) TOKEN(unsigned long, NAME)
+	#define TOK_STR(NAME) TOKEN(std::string, NAME)
 };
 
 /*
