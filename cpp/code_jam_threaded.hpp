@@ -33,7 +33,6 @@ solver. No other changes are needed.
 #include <mutex>
 #include <condition_variable>
 #include <vector>
-#include <iostream>
 
 #include "code_jam.hpp"
 
