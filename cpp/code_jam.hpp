@@ -30,9 +30,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-// Convenient typedefs
+// Convenient typedef
 typedef intmax_t Int;
-typedef uintmax_t UInt;
 
 class Tokens
 {
@@ -127,7 +126,6 @@ public:
 	#define TOKEN(TYPE, NAME) MUT_TOKEN(TYPE const, NAME)
 	
 	#define TOK_INT(NAME) TOKEN(Int, NAME)
-	#define TOK_UINT(NAME) TOKEN(UInt, NAME)
 	#define TOK_STR(NAME) TOKEN(string, NAME)
 	
 	#define TOK_CONTAINER(TYPE, NAME, SIZE) TYPE NAME{ SIZE }; FILL(NAME)
