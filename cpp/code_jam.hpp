@@ -19,14 +19,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <type_traits>
+#include <iterator>
+#include <cstdint>
+
+// Not used by LibCodeJam, but are commonly used in many solutions
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <utility>
+
+using namespace std;
+
+// Convenient typedefs
+typedef intmax_t Int;
+typedef uintmax_t UInt;
 
 class Tokens
 {
 private:
-	std::istream* istr;
+	istream* istr;
 
 public:
-	explicit Tokens(std::istream& istr):
+	explicit Tokens(istream& istr):
 		istr(&istr)
 	{}
 
@@ -36,10 +50,10 @@ public:
 	move construct a type.
 	*/
 	template<class T>
-	typename std::remove_cv<T>::type next_token()
+	typename remove_cv<T>::type next_token()
 	{
-		typedef typename std::remove_cv<T>::type MutableT;
-		static_assert(!std::is_reference<MutableT>::value,
+		typedef typename remove_cv<T>::type MutableT;
+		static_assert(!is_reference<MutableT>::value,
 			"next_token cannot get a reference type");
 
 		MutableT token;
@@ -78,7 +92,7 @@ public:
 			and other funky iterators
 			*/
 			*it = next_token<
-				typename std::iterator_traits<Iterator>::value_type>();
+				typename iterator_traits<Iterator>::value_type>();
 	}
 
 	// Read a token n, then insert n tokens into an input iterator
@@ -92,7 +106,7 @@ public:
 	Access to the underlying stream, for other input operations the user may
 	want.
 	*/
-	std::istream& stream() { return *istr; }
+	istream& stream() { return *istr; }
 
 	/*
 	For the threaded version, this function should be called to signal that the
@@ -112,9 +126,13 @@ public:
 	#define MUT_TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
 	#define TOKEN(TYPE, NAME) MUT_TOKEN(TYPE const, NAME)
 	
-	#define TOK_INT(NAME) TOKEN(long, NAME)
-	#define TOK_UINT(NAME) TOKEN(unsigned long, NAME)
-	#define TOK_STR(NAME) TOKEN(std::string, NAME)
+	#define TOK_INT(NAME) TOKEN(Int, NAME)
+	#define TOK_UINT(NAME) TOKEN(UInt, NAME)
+	#define TOK_STR(NAME) TOKEN(string, NAME)
+	
+	#define TOK_CONTAINER(TYPE, NAME, SIZE) TYPE NAME{ SIZE }; FILL(NAME)
+	#define TOK_VEC(TYPE, NAME, SIZE) TOK_CONTAINER(vector<TYPE>, NAME, SIZE)
+	#define TOK_INTVEC(NAME, SIZE) TOK_VEC(Int, NAME, SIZE)
 };
 
 /*
@@ -136,18 +154,18 @@ template<class Solution>
 inline void print_case(
 	const Solution& solution,
 	const unsigned case_id,
-	std::ostream& ostr)
+	ostream& ostr)
 {
 #ifndef INSERT_NEWLINE
-	ostr << "Case #" << case_id + 1 << ": " << solution << std::endl;
+	ostr << "Case #" << case_id + 1 << ": " << solution << endl;
 #else
-	ostr << "Case #" << case_id + 1 << ":\n" << solution << std::endl;
+	ostr << "Case #" << case_id + 1 << ":\n" << solution << endl;
 #endif
 }
 
 
 template<class Solver>
-inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
+inline void solve_code_jam(istream& istr, ostream& ostr)
 {
 	Tokens tokens(istr);
 	Solver solver;
@@ -166,4 +184,4 @@ inline void solve_code_jam(std::istream& istr, std::ostream& ostr)
 #define BASIC_SOLVE SOLVER { SOLVE_CASE; }; \
 	inline auto Solver::solve_case(Tokens& tokens) const
 
-#define AUTOSOLVE int main() { solve_code_jam<Solver>(std::cin, std::cout); }
+#define AUTOSOLVE int main() { solve_code_jam<Solver>(cin, cout); }
