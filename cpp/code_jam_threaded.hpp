@@ -39,10 +39,10 @@ solver. No other changes are needed.
 class ThreadedTokens : public Tokens
 {
 private:
-	std::mutex input_mutex;
+	mutex input_mutex;
 
 public:
-	ThreadedTokens(std::istream& istr):
+	ThreadedTokens(istream& istr):
 		Tokens(istr)
 	{}
 
@@ -59,14 +59,14 @@ public:
 
 class ThreadedPrinter
 {
-	std::mutex print_mutex;
-	std::condition_variable print_cond;
+	mutex print_mutex;
+	condition_variable print_cond;
 	unsigned next_print = 0;
 
-	std::ostream* ostr;
+	ostream* ostr;
 
 public:
-	explicit ThreadedPrinter(std::ostream& ostr):
+	explicit ThreadedPrinter(ostream& ostr):
 		ostr(&ostr)
 	{}
 
@@ -75,7 +75,7 @@ public:
 	{
 		{
 			// Lock for printing
-			std::unique_lock<std::mutex> print_lock(print_mutex);
+			unique_lock<mutex> print_lock(print_mutex);
 
 			// Wait until our turn to print
 			print_cond.wait(print_lock, [this, case_id]
@@ -94,7 +94,7 @@ public:
 };
 
 template<class Solver>
-inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
+inline void threaded_solve_code_jam(istream& istr, ostream& ostr)
 {
 	ThreadedTokens tokens(istr);
 	ThreadedPrinter printer(ostr);
@@ -102,7 +102,7 @@ inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 	Solver solver;
 	const unsigned num_cases = solver.pre_solve(tokens);
 
-	std::vector<std::thread> threads;
+	vector<thread> threads;
 	threads.reserve(num_cases);
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
@@ -118,4 +118,4 @@ inline void threaded_solve_code_jam(std::istream& istr, std::ostream& ostr)
 		thread.join();
 }
 
-#define THREADED_AUTOSOLVE int main() { threaded_solve_code_jam<Solver>(std::cin, std::cout); }
+#define THREADED_AUTOSOLVE int main() { threaded_solve_code_jam<Solver>(cin, cout); }
