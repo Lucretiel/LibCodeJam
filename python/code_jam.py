@@ -91,7 +91,7 @@ def collects_tokens(func):
         def solve(_tokens):
             a = tokens.next_token(int)
             b = tokens.next_token(int)
-            s = tokens.next_token(str)
+            s = tokens.next_token()
             tokens = _tokens
             return a + b
     
@@ -112,7 +112,7 @@ def collects_tokens(func):
             elif param.annotation is not param.empty:
                 yield tokens.next_token(param.annotation)
             else:
-                yield tokens.next_token(str)
+                yield tokens.next_token()
     
     def wrapper(tokens):
         return func(*collect(tokens))
