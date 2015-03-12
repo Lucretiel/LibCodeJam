@@ -22,6 +22,7 @@ formatting.
 
 from signal import signal, SIGPIPE, SIG_DFL
 from contextlib import contextmanager
+from inspect import isgeneratorfunction
 
 # Set this variable to true in your code to force printing newlines between
 # "Case #" and the solution itself
@@ -88,7 +89,7 @@ def print_cases(solutions, ostr):
         signal(SIGPIPE, SIG_DFL)
 
 
-def generator_solve_code_jam(solver, istr, ostr):
+def generator_solve(solver, istr, ostr):
     '''
     Print the solution of a code jam to the file object `ostr`, given an input
     file object `istr`. `solver` is a generator that takes a Tokens object and
@@ -107,7 +108,7 @@ def generator_solve_code_jam(solver, istr, ostr):
     return print_cases(solver(Tokens(istr)), ostr)
 
 
-def solve_code_jam(solver, istr, ostr):
+def function_solve(solver, istr, ostr):
     '''
     For a typical, code jam where the first token is the number of cases, this
     function prints the solution to the code to the file object `ostr`, given
@@ -121,11 +122,19 @@ def solve_code_jam(solver, istr, ostr):
     BrokenPipeError from either the input or output file, and flushes the
     output for each case.
     '''
-    def solve(tokens):
-        for _ in range(tokens.next_token(int)):
-            yield solver(tokens)
+    return generator_solve(
+        (solver(tokens) for _ in range(tokens.next_token(int)),
+        istr, ostr)
 
-    return generator_solve_code_jam(solve, istr, ostr)
+
+def solve_code_jam(solver, istr, ostr):
+    '''
+    Solve a code jam using either a function or a generator, based on solver's
+    type. See function_solve and generator_solve.
+    '''
+    
+    return (generator_solve if isgeneratorfunction(solver) else function_solve)(
+        solver, istr, ostr)
 
 @contextmanager
 def smart_open(filename, *args, **kwargs):
@@ -135,8 +144,8 @@ def smart_open(filename, *args, **kwargs):
     stdout), it yields the object directly.
     '''
     if isinstance(filename, (str, bytes, int)):
-        with open(filename, *args, **kwargs) as f:
-            yield f
+        with open(filename, *args, **kwargs) as file:
+            yield file
     else:
         yield filename
 
@@ -163,7 +172,6 @@ def autosolve(solver):
 
     from sys import stdin, stdout
     from argparse import ArgumentParser
-    from inspect import isgeneratorfunction
 
     parser = ArgumentParser()
     parser.add_argument('in_file', nargs='?', default=stdin,
@@ -174,10 +182,7 @@ def autosolve(solver):
 
     with smart_open(args.in_file, 'r', encoding='ascii') as istr:
         with smart_open(args.out_file, 'w', encoding='ascii') as ostr:
-            if isgeneratorfunction(solver):
-                generator_solve_code_jam(solver, istr, ostr)
-            else:
-                solve_code_jam(solver, istr, ostr)
+            solve_code_jam(solver, istr, ostr)
 
     return solver
 
