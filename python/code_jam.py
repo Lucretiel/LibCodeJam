@@ -72,6 +72,85 @@ class Tokens:
     c = next_counted_tokens
 
 
+def collects_tokens(func):
+    '''
+    This decorator allows a function to collect tokens. The function's
+    signature is changed to accept a single Tokens instance. For each of the
+    function's parameters, a token is extracted from the tokens instance and
+    passed as an argument, with a type matching the annotation (defaulting to
+    str). Any parameter with the name 'tokens' or the annotation 'Tokens' is
+    simply passed the Tokens instance instead of a new token.
+    
+    Example:
+    
+        @collects_tokens
+        def solve(a: int, b: int, s, tokens):
+            return a + b
+    
+        # This is the same as:
+        def solve(_tokens):
+            a = tokens.next_token(int)
+            b = tokens.next_token(int)
+            s = tokens.next_token(str)
+            tokens = _tokens
+            return a + b
+    
+    It is designed to be used with the autosolve decorator, like so:
+    
+        @autosolve
+        @collects_tokens
+        def solve(...):
+            ....
+    '''
+    from inspect import signature
+    params = tuple(signature(func).parameters.values())
+    
+    def collect(tokens):
+        for param in params:
+            if param.name == 'tokens' or param.annotation is Tokens:
+                yield tokens
+            elif param.annotation is not param.empty:
+                yield tokens.next_token(param.annotation)
+            else:
+                yield tokens.next_token(str)
+    
+    def wrapper(tokens):
+        return func(*collect(tokens))
+    
+    # solve_code_jam uses this flag to determine if a solver is a generator or
+    # a per-case function.
+    wrapper._gen = isgeneratorfunction(func)
+    return wrapper
+
+
+def cases(n):
+    '''
+    This decorator helps with writing generator solvers. When applied to a
+    function, it wraps the function in a generator which calls the underlying
+    function with the arguments n times, yielding the return values. The intent
+    is to make it possible to use @collects_tokens within a generator solver.
+    
+    Example:
+    
+        @autosolve
+        @collects_tokens
+        def solve_problem(n: int, x: int, tokens):
+            """for each case, add x to the int for that case"""
+            @cases(n)
+            @collects_tokens
+            def solve_case(a: int):
+                return a + x
+            
+            yield from solve_case(tokens)
+    '''
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for _ in range(n):
+                yield func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def print_cases(solutions, ostr):
     '''
     Format and print the solutions of a code jam to the file object `ostr`.
@@ -129,7 +208,7 @@ def function_solve(solver, istr, ostr):
     def solver_gen(tokens):
         for _ in range(tokens.next_token(int)):
             yield solver(tokens)
-            
+
     generator_solve(solver_gen, istr, ostr)
 
 
@@ -143,61 +222,6 @@ def solve_code_jam(solver, istr, ostr):
     return (generator_solve 
         if getattr(solver, '_gen', False) or isgeneratorfunction(solver)
         else function_solve)(solver, istr, ostr)
-
-
-def collects_tokens(func):
-    '''
-    This decorator allows a function to collect tokens. The function's
-    signature is changed to accept a single Tokens instance. For each of the
-    function's parameters, a token is extracted from the tokens instance and
-    passed as an argument, with a type matching the annotation (defaulting to
-    str). Any parameter with the name 'tokens' or the annotation 'Tokens' is
-    simply passed the Tokens instance instead of a new token.
-    
-    Example:
-    
-        @collects_tokens
-        def solve(a: int, b: int, s, tokens):
-            return a + b
-    
-        # This is the same as:
-        def solve(_tokens):
-            a = tokens.next_token(int)
-            b = tokens.next_token(int)
-            s = tokens.next_token(str)
-            tokens = _tokens
-            return a + b
-    
-    It is designed to be used with the autosolve decorator, like so:
-    
-        @autosolve
-        @collects_tokens
-        def solve(...):
-            ....
-    '''
-    # inspect.signature wasn't added until python 3.3, so defer its importation
-    # until it is actually used here to allow python 3.2 users to still use the
-    # rest of LibCodeJam
-
-    from inspect import signature
-    params = tuple(signature(func).parameters.values())
-    
-    def collect(tokens):
-        for param in params:
-            if param.name == 'tokens' or param.annotation is Tokens:
-                yield tokens
-            elif param.annotation is not param.empty:
-                yield tokens.next_token(param.annotation)
-            else:
-                yield tokens.next_token(str)
-    
-    def wrapper(tokens):
-        return func(*collect(tokens))
-    
-    # solve_code_jam uses this flag to determine if a solver is a generator or
-    # a per-case function.
-    wrapper._gen = isgeneratorfunction(func)
-    return wrapper
 
 
 @contextmanager
@@ -234,7 +258,7 @@ def autosolve(solver):
 
     The decorated function is returned unchanged.
     
-    Designed to be combined with the collects_tokens decorator (python 3.3+):
+    Designed to be combined with the collects_tokens decorator:
     
         @autosolve
         @collects_tokens
