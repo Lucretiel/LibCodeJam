@@ -20,7 +20,7 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting.
 '''
 
-from sys import stdin, stdout
+from sys import stdin, stdout, stderr
 from argparse import ArgumentParser
 from contextlib import contextmanager, suppress
 from inspect import isgeneratorfunction
@@ -72,7 +72,7 @@ class Tokens:
     c = next_counted
 
 
-def collects_tokens(func):
+def collects(func):
     '''
     This decorator allows a function to collect tokens. The function's
     signature is changed to accept a single Tokens instance. For each of the
@@ -83,7 +83,7 @@ def collects_tokens(func):
     
     Example:
     
-        @collects_tokens
+        @collects
         def solve(a: int, b: int, s, tokens):
             return a + b
     
@@ -98,7 +98,7 @@ def collects_tokens(func):
     It is designed to be used with the autosolve decorator, like so:
     
         @autosolve
-        @collects_tokens
+        @collects
         def solve(...):
             ....
     '''
@@ -128,16 +128,16 @@ def cases(n):
     This decorator helps with writing generator solvers. When applied to a
     function, it wraps the function in a generator which calls the underlying
     function with the arguments n times, yielding the return values. The intent
-    is to make it possible to use @collects_tokens within a generator solver.
+    is to make it possible to use @collects within a generator solver.
     
     Example:
     
         @autosolve
-        @collects_tokens
+        @collects
         def solve_problem(n: int, x: int, tokens):
             """for each case, add x to the int for that case"""
             @cases(n)
-            @collects_tokens
+            @collects
             def solve_case(a: int):
                 return a + x
             
@@ -258,10 +258,10 @@ def autosolve(solver):
 
     The decorated function is returned unchanged.
     
-    Designed to be combined with the collects_tokens decorator:
+    Designed to be combined with the collects decorator:
     
         @autosolve
-        @collects_tokens
+        @collects
         def solve(A: int, B: int, tokens):
             ...
     '''
@@ -280,6 +280,8 @@ def autosolve(solver):
     return solver
 
 
+def debug(*args, **kwargs):
+    return print(*args, file=stderr, **kwargs)
 # TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
 # format on stdout. Force autosolve to make output be ascii when >redirecting
 # to a file.
