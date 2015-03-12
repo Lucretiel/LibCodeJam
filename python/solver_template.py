@@ -39,11 +39,10 @@ def solve_case(tokens):
     on the same line or different lines. It has the following methods:
 
     tokens.next_token(type) -> get the next token, converting it to type
-    tokens.next_many_tokens(n, type) -> yield the next n tokens
-    tokens.next_counted_tokens(type) -> get the next int token, then yield that
-        many tokens
+    tokens.next_many(n, type) -> yield the next n tokens
+    tokens.next_counted(type) -> get the next int, then yield that many tokens
 
-    These methods have the aliases n, m, and c, respectively.
+    These methods have the aliases t, m, and c, respectively.
 
     Optionally, add additional parameters to the solve_case function. One token
     will be extracted for each parameter besides tokens, in order, and passed
