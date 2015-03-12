@@ -63,6 +63,10 @@ class Tokens:
         Read a token n, then yield n tokens of type `t`.
         '''
         return self.next_many_tokens(self.next_token(int), t)
+    
+    n = next_token
+    m = next_many_tokens
+    c = next_counted_tokens
 
 
 def print_cases(solutions, ostr):
