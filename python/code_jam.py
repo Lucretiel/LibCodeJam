@@ -54,22 +54,22 @@ class Tokens:
         '''
         return t(next(self.tokens))
 
-    def next_many_tokens(self, n, t):
+    def next_many(self, n, t):
         '''
         Yield the next `n` tokens of type `t`
         '''
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted_tokens(self, t):
+    def next_counted(self, t):
         '''
         Read a token n, then yield n tokens of type `t`.
         '''
-        return self.next_many_tokens(self.next_token(int), t)
+        return self.next_many(self.next_token(int), t)
     
-    n = next_token
-    m = next_many_tokens
-    c = next_counted_tokens
+    t = next_token
+    m = next_many
+    c = next_counted
 
 
 def collects_tokens(func):
