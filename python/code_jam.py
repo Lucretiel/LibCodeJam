@@ -20,13 +20,16 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting.
 '''
 
-from signal import signal, SIGPIPE, SIG_DFL
-from contextlib import contextmanager
+from sys import stdin, stdout
+from argparse import ArgumentParser
+from contextlib import contextmanager, suppress
 from inspect import isgeneratorfunction
+
 
 # Set this variable to true in your code to force printing newlines between
 # "Case #" and the solution itself
 INSERT_NEWLINE = False
+
 
 class Tokens:
     '''
@@ -74,8 +77,7 @@ def print_cases(solutions, ostr):
     Format and print the solutions of a code jam to the file object `ostr`.
     `solutions` should be an ordered iterable of solutions. Prints using the
     standard "Case #1: X" formatting. If code_jam.INSERT_NEWLINE is True, a
-    newline is printed before each solution. The solution is printed with the
-    standard print functions, so any stringable type is fine.
+    newline is printed before each solution.
 
     This function silently stops and returns in the event of a BrokenPipeError
     from either the input or output file.
@@ -86,11 +88,9 @@ def print_cases(solutions, ostr):
     sep = '\n' if INSERT_NEWLINE else ' '
     format_case = "Case #{}:".format
 
-    try:
+    with suppress(BrokenPipeError):
         for case, solution in enumerate(solutions, 1):
             print(format_case(case), solution, sep=sep, file=ostr, flush=True)
-    except BrokenPipeError:
-        signal(SIGPIPE, SIG_DFL)
 
 
 def generator_solve(solver, istr, ostr):
@@ -126,19 +126,79 @@ def function_solve(solver, istr, ostr):
     BrokenPipeError from either the input or output file, and flushes the
     output for each case.
     '''
-    return generator_solve(
-        (solver(tokens) for _ in range(tokens.next_token(int)),
-        istr, ostr)
+    def solver_gen(tokens):
+        for _ in range(tokens.next_token(int)):
+            yield solver(tokens)
+            
+    generator_solve(solver_gen, istr, ostr)
 
 
 def solve_code_jam(solver, istr, ostr):
     '''
     Solve a code jam using either a function or a generator, based on solver's
-    type. See function_solve and generator_solve.
+    type. See function_solve and generator_solve. If the function has the _gen
+    attribute and it is True, it is assumed to be a wrapper around a generator.
     '''
     
-    return (generator_solve if isgeneratorfunction(solver) else function_solve)(
-        solver, istr, ostr)
+    return (generator_solve 
+        if getattr(solver, '_gen', False) or isgeneratorfunction(solver)
+        else function_solve)(solver, istr, ostr)
+
+
+def collects_tokens(func):
+    '''
+    This decorator allows a function to collect tokens. The function's
+    signature is changed to accept a single Tokens instance. For each of the
+    function's parameters, a token is extracted from the tokens instance and
+    passed as an argument, with a type matching the annotation (defaulting to
+    str). Any parameter with the name 'tokens' or the annotation 'Tokens' is
+    simply passed the Tokens instance instead of a new token.
+    
+    Example:
+    
+        @collects_tokens
+        def solve(a: int, b: int, s, tokens):
+            return a + b
+    
+        # This is the same as:
+        def solve(_tokens):
+            a = tokens.next_token(int)
+            b = tokens.next_token(int)
+            s = tokens.next_token(str)
+            tokens = _tokens
+            return a + b
+    
+    It is designed to be used with the autosolve decorator, like so:
+    
+        @autosolve
+        @collects_tokens
+        def solve(...):
+            ....
+    '''
+    # inspect.signature wasn't added until python 3.3, so defer its importation
+    # until it is actually used here to allow python 3.2 users to still use the
+    # rest of LibCodeJam
+
+    from inspect import signature
+    params = tuple(signature(func).parameters.values())
+    
+    def collect(tokens):
+        for param in params:
+            if param.name == 'tokens' or param.annotation is Tokens:
+                yield tokens
+            elif param.annotation is not param.empty:
+                yield tokens.next_token(param.annotation)
+            else:
+                yield tokens.next_token(str)
+    
+    def wrapper(tokens):
+        return func(*collect(tokens))
+    
+    # solve_code_jam uses this flag to determine if a solver is a generator or
+    # a per-case function.
+    wrapper._gen = isgeneratorfunction(func)
+    return wrapper
+
 
 @contextmanager
 def smart_open(filename, *args, **kwargs):
@@ -153,29 +213,34 @@ def smart_open(filename, *args, **kwargs):
     else:
         yield filename
 
+
 def autosolve(solver):
     '''
-    Decorator to immediatly solve a code jam with a function when the file is
+    Decorator to immediately solve a code jam with a function when the file is
     run as a script. It should decorate a function which, when called with a
     Tokens object, returns a solution to a single test case. The code jam is
-    then immediatly solved by assuming the first token is the number of test
-    cases, and repeatedly calling the decorated function to retreive solutions.
+    then immediately solved by assuming the first token is the number of test
+    cases, and repeatedly calling the decorated function to retrieve solutions.
     Doesn't respect __name__ == '__main__'.
 
-    If the decorated function is a generator, the behavior is slightly diffent.
-    The generator is called with the Tokens object, and each yielded solution
-    is printed. The generator is responsible for yielding the correct number of
-    solutions.
+    If the decorated function is a generator, the behaviour is slightly
+    different. The generator is called with the Tokens object, and each yielded
+    solution is printed. The generator is responsible for yielding the correct
+    number of solutions.
 
-    autosolve also collects filenames from sys.argv. The first command line
-    argument, if given, is the input file, and the second, if given, is the
-    output file. These default to stdin and stdout, respectively.
+    autosolve also collects filenames from the command line arguments. The
+    first argument, if given, is the input file, and the second, if given, is
+    the output file. These default to stdin and stdout, respectively.
 
     The decorated function is returned unchanged.
+    
+    Designed to be combined with the collects_tokens decorator (python 3.3+):
+    
+        @autosolve
+        @collects_tokens
+        def solve(A: int, B: int, tokens):
+            ...
     '''
-
-    from sys import stdin, stdout
-    from argparse import ArgumentParser
 
     parser = ArgumentParser()
     parser.add_argument('in_file', nargs='?', default=stdin,
@@ -190,6 +255,7 @@ def autosolve(solver):
 
     return solver
 
+
 # TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
-# format on stdout. Force autosolve to make output to be ascii when >redirecting
+# format on stdout. Force autosolve to make output be ascii when >redirecting
 # to a file.
