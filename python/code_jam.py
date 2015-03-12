@@ -48,20 +48,20 @@ class Tokens:
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
 
-    def next_token(self, t):
+    def next_token(self, t=str):
         '''
         Read a single token of type `t`
         '''
         return t(next(self.tokens))
 
-    def next_many(self, n, t):
+    def next_many(self, n, t=str):
         '''
         Yield the next `n` tokens of type `t`
         '''
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted(self, t):
+    def next_counted(self, t=str):
         '''
         Read a token n, then yield n tokens of type `t`.
         '''
