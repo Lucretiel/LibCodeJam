@@ -48,25 +48,25 @@ class Tokens:
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
 
-    def next_token(self, t=str):
+    def next_token(self, t=int):
         '''
         Read a single token of type `t`
         '''
         return t(next(self.tokens))
 
-    def next_many(self, n, t=str):
+    def next_many(self, n, t=int):
         '''
         Yield the next `n` tokens of type `t`
         '''
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted(self, t=str):
+    def next_counted(self, t=int):
         '''
         Read a token n, then yield n tokens of type `t`.
         '''
         return self.next_many(self.next_token(int), t)
-    
+
     t = next_token
     m = next_many
     c = next_counted
@@ -104,8 +104,8 @@ def collects(func):
     '''
     from inspect import signature
     params = tuple(signature(func).parameters.values())
-    
-    def collect(tokens):
+
+    def collect_token_args(tokens):
         for param in params:
             if param.name == 'tokens' or param.annotation is Tokens:
                 yield tokens
@@ -113,14 +113,14 @@ def collects(func):
                 yield tokens.next_token(param.annotation)
             else:
                 yield tokens.next_token()
-    
-    def wrapper(tokens):
-        return func(*collect(tokens))
-    
+
+    def collect_wrapper(tokens):
+        return func(*collect_token_args(tokens))
+
     # solve_code_jam uses this flag to determine if a solver is a generator or
     # a per-case function.
-    wrapper._gen = isgeneratorfunction(func)
-    return wrapper
+    collect_wrapper._gen = isgeneratorfunction(func)
+    return collect_wrapper
 
 
 def cases(n):
@@ -144,10 +144,10 @@ def cases(n):
             yield from solve_case(tokens)
     '''
     def decorator(func):
-        def wrapper(*args, **kwargs):
+        def cases_wrapper(*args, **kwargs):
             for _ in range(n):
                 yield func(*args, **kwargs)
-        return wrapper
+        return cases_wrapper
     return decorator
 
 
@@ -205,11 +205,11 @@ def function_solve(solver, istr, ostr):
     BrokenPipeError from either the input or output file, and flushes the
     output for each case.
     '''
-    def solver_gen(tokens):
+    def func_solve_wrapper(tokens):
         for _ in range(tokens.next_token(int)):
             yield solver(tokens)
 
-    generator_solve(solver_gen, istr, ostr)
+    generator_solve(func_solve_wrapper, istr, ostr)
 
 
 def solve_code_jam(solver, istr, ostr):
@@ -218,7 +218,7 @@ def solve_code_jam(solver, istr, ostr):
     type. See function_solve and generator_solve. If the function has the _gen
     attribute and it is True, it is assumed to be a wrapper around a generator.
     '''
-    
+
     return (generator_solve 
         if getattr(solver, '_gen', False) or isgeneratorfunction(solver)
         else function_solve)(solver, istr, ostr)
@@ -281,6 +281,7 @@ def autosolve(solver):
 
 
 def debug(*args, **kwargs):
+    '''print to stderr'''
     return print(*args, file=stderr, **kwargs)
 # TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
 # format on stdout. Force autosolve to make output be ascii when >redirecting
