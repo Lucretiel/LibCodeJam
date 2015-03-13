@@ -2,7 +2,7 @@
 # https://github.com/Lucretiel/LibCodeJam for source code and (ostensibly) some
 # documentation.
 
-from code_jam import autosolve, collects
+from code_jam import autosolve, collects, cases
 
 
 # Uncomment if you want a newline between the "Case #" and the actual solution
@@ -23,7 +23,7 @@ from code_jam import autosolve, collects
 
 @autosolve
 @collects
-def solve_case(tokens):
+def solve(tokens):
     '''
     Solve a single test case using the tokens, and return the solution. If
     this code jam problem requires shared state between the test cases (for
