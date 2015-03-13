@@ -104,10 +104,16 @@ def collects(func):
     '''
     from inspect import signature
     params = tuple(signature(func).parameters.values())
+    
+    def is_token_param(param):
+        return (
+            (param.name in {'tokens', 't'}
+                and param.annotation is param.empty)
+            or param.annotation is Tokens)
 
     def collect_token_args(tokens):
         for param in params:
-            if param.name == 'tokens' or param.annotation is Tokens:
+            if is_token_param(param):
                 yield tokens
             elif param.annotation is not param.empty:
                 yield tokens.next_token(param.annotation)
