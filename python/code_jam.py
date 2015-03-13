@@ -76,22 +76,22 @@ def collects(func):
     '''
     This decorator allows a function to collect tokens. The function's
     signature is changed to accept a single Tokens instance. For each of the
-    function's parameters, a token is extracted from the tokens instance and
-    passed as an argument, with a type matching the annotation (defaulting to
-    str). Any parameter with the name 'tokens' or the annotation 'Tokens' is
-    simply passed the Tokens instance instead of a new token.
+    function's parameters with a type annotation, a token is extracted from the
+    tokens instance and passed as an argument, with a type matching the
+    annotation. Any other parameter is simply passed the Tokens instance
+    instead of a new token.
     
     Example:
     
         @collects
-        def solve(a: int, b: int, s, tokens):
+        def solve(a: int, b: int, s: str, tokens):
             return a + b
     
         # This is the same as:
         def solve(_tokens):
             a = tokens.next_token(int)
             b = tokens.next_token(int)
-            s = tokens.next_token()
+            s = tokens.next_token(str)
             tokens = _tokens
             return a + b
     
@@ -104,21 +104,13 @@ def collects(func):
     '''
     from inspect import signature
     params = tuple(signature(func).parameters.values())
-    
-    def is_token_param(param):
-        return (
-            (param.name in {'tokens', 't'}
-                and param.annotation is param.empty)
-            or param.annotation is Tokens)
 
     def collect_token_args(tokens):
         for param in params:
-            if is_token_param(param):
-                yield tokens
-            elif param.annotation is not param.empty:
+            if param.annotation is not param.empty:
                 yield tokens.next_token(param.annotation)
             else:
-                yield tokens.next_token()
+                yield tokens
 
     def collect_wrapper(tokens):
         return func(*collect_token_args(tokens))
