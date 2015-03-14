@@ -40,7 +40,8 @@ private:
 
 	// Via http://stackoverflow.com/q/7943525
 	template<class T>
-	struct function_traits : public function_traits<decltype(&T::operator())>
+	struct function_traits :
+		public function_traits<decltype(&decay<T>::type::operator())>
 	{};
 
 	template<class Ret, class Arg>
@@ -110,7 +111,8 @@ public:
 			stream() >> i;
 	}
 
-	// Call some lambda on the next n tokens of type T. Returns n.
+	// Call some lambda on the next n tokens. Detects the type from the
+	// lambda's argument. Returns n.
 	template<class Func>
 	UInt next_many_tokens(const UInt n, Func&& func)
 	{
@@ -120,8 +122,8 @@ public:
 		return n;
 	}
 
-	// Read a token n, then call the lambda on the next n tokens of type T.
-	// Returns the number of read tokens
+	// Read a token n, then call the lambda on the next n tokens. Detects the
+	// return type from the lambda's argument. Returns n.
 	template<class Func>
 	UInt next_counted_tokens(Func&& func)
 	{
@@ -203,7 +205,7 @@ void solve_code_jam(istream& istr, ostream& ostr)
 
 #define SOLVE_CASE public: auto solve_case(Tokens& tokens) const
 
-#define BASIC_SOLVE SOLVER { auto solve_case(Tokens&) const; }; \
+#define BASIC_SOLVE SOLVER { public: auto solve_case(Tokens&) const; }; \
 	auto Solver::solve_case(Tokens& tokens) const
 
 #define AUTOSOLVE int main() { solve_code_jam<Solver>(cin, cout); }
