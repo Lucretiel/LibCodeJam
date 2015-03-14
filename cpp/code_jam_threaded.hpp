@@ -118,4 +118,4 @@ void threaded_solve_code_jam(istream& istr, ostream& ostr)
 		thread.join();
 }
 
-#define THREADED_AUTOSOLVE int main() { threaded_solve_code_jam<Solver>(cin, cout); }
+#define THREADED_AUTOSOLVE _SOLVE_WITH(threaded_solve_code_jam)

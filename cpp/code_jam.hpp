@@ -114,7 +114,7 @@ public:
 	// Call some lambda on the next n tokens. Detects the type from the
 	// lambda's argument. Returns n.
 	template<class Func>
-	UInt next_many_tokens(const UInt n, Func&& func)
+	UInt next_many(const UInt n, Func&& func)
 	{
 		typedef typename decay<typename function_traits<Func>::arg_type>::type T;
 		for(UInt i = 0; i < n; ++i)
@@ -125,7 +125,7 @@ public:
 	// Read a token n, then call the lambda on the next n tokens. Detects the
 	// return type from the lambda's argument. Returns n.
 	template<class Func>
-	UInt next_counted_tokens(Func&& func)
+	UInt next_counted(Func&& func)
 	{
 		return next_many_tokens(next_token<UInt>(), func);
 	}
@@ -208,4 +208,5 @@ void solve_code_jam(istream& istr, ostream& ostr)
 #define BASIC_SOLVE SOLVER { public: auto solve_case(Tokens&) const; }; \
 	auto Solver::solve_case(Tokens& tokens) const
 
-#define AUTOSOLVE int main() { solve_code_jam<Solver>(cin, cout); }
+#define _SOLVE_WITH(WRAPPER) int main() { WRAPPER<Solver>(cin, cout); }
+#define AUTOSOLVE int main() _SOLVE_WITH(solve_code_jam)
