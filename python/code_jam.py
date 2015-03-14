@@ -80,13 +80,13 @@ def collects(func):
     tokens instance and passed as an argument, with a type matching the
     annotation. Any other parameter is simply passed the Tokens instance
     instead of a new token.
-    
+
     Example:
-    
+
         @collects
         def solve(a: int, b: int, s: str, tokens):
             return a + b
-    
+
         # This is the same as:
         def solve(_tokens):
             a = tokens.next_token(int)
@@ -94,9 +94,9 @@ def collects(func):
             s = tokens.next_token(str)
             tokens = _tokens
             return a + b
-    
+
     It is designed to be used with the autosolve decorator, like so:
-    
+
         @autosolve
         @collects
         def solve(...):
@@ -127,9 +127,9 @@ def cases(n):
     function, it wraps the function in a generator which calls the underlying
     function with the arguments n times, yielding the return values. The intent
     is to make it possible to use @collects within a generator solver.
-    
+
     Example:
-    
+
         @autosolve
         @collects
         def solve_problem(n: int, x: int, tokens):
@@ -138,7 +138,7 @@ def cases(n):
             @collects
             def solve_case(a: int):
                 return a + x
-            
+
             yield from solve_case(tokens)
     '''
     def decorator(func):
@@ -217,7 +217,7 @@ def solve_code_jam(solver, istr, ostr):
     attribute and it is True, it is assumed to be a wrapper around a generator.
     '''
 
-    return (generator_solve 
+    return (generator_solve
         if getattr(solver, '_gen', False) or isgeneratorfunction(solver)
         else function_solve)(solver, istr, ostr)
 
@@ -255,9 +255,9 @@ def autosolve(solver):
     the output file. These default to stdin and stdout, respectively.
 
     The decorated function is returned unchanged.
-    
+
     Designed to be combined with the collects decorator:
-    
+
         @autosolve
         @collects
         def solve(A: int, B: int, tokens):
