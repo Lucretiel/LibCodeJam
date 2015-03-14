@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <type_traits>
-#include <iterator>
 #include <cstdint>
 
 // Not used by LibCodeJam, but are commonly used in many solutions
@@ -32,11 +31,41 @@ using namespace std;
 
 // Convenient typedef
 typedef intmax_t Int;
+typedef uintmax_t UInt;
 
 class Tokens
 {
 private:
 	istream* istr;
+
+	// Via http://stackoverflow.com/q/7943525
+	template<class T>
+	struct function_traits : public function_traits<decltype(&T::operator())>
+	{};
+
+	template<class Ret, class Arg>
+	struct function_traits<Ret(Arg)>
+	{
+		typedef Arg arg_type;
+	};
+
+	template<class Ret, class Arg>
+	struct function_traits<Ret(*)(Arg)>
+	{
+		typedef Arg arg_type;
+	};
+
+	template<class T, class Ret, class Arg>
+	struct function_traits<Ret(T::*)(Arg)>
+	{
+		typedef Arg arg_type;
+	};
+
+	template<class T, class Ret, class Arg>
+	struct function_traits<Ret(T::*)(Arg) const>
+	{
+		typedef Arg arg_type;
+	};
 
 public:
 	explicit Tokens(istream& istr):
@@ -64,41 +93,39 @@ public:
 	Fill 1 or more variables of arbitrary type with tokens, in order.
 	*/
 	template<class T, class... Rest>
-	inline void load_tokens(T& t, Rest&... rest)
+	void load_tokens(T& t, Rest&... rest)
 	{
 		stream() >> t;
 		load_tokens(rest...);
 	}
 
-	inline void load_tokens()
+	void load_tokens()
 	{}
 
 	// Fill a container with tokens
 	template<class Container>
-	void next_many_tokens(Container& container)
+	void fill(Container& container)
 	{
 		for(auto& i : container)
 			stream() >> i;
 	}
 
-	// Insert n tokens into an input iterator
-	template<class Iterator>
-	void next_many_tokens(Iterator it, unsigned n)
+	// Call some lambda on the next n tokens of type T. Returns n.
+	template<class Func>
+	UInt next_many_tokens(const UInt n, Func&& func)
 	{
-		for(unsigned i = 0; i < n; ++i, ++it)
-			/*
-			Use assignment instead of "stream() >>"" to allow for back_inserter
-			and other funky iterators
-			*/
-			*it = next_token<
-				typename iterator_traits<Iterator>::value_type>();
+		typedef typename decay<typename function_traits<Func>::arg_type>::type T;
+		for(UInt i = 0; i < n; ++i)
+			func(next_token<T>());
+		return n;
 	}
 
-	// Read a token n, then insert n tokens into an input iterator
-	template<class Iterator>
-	void next_counted_tokens(Iterator it)
+	// Read a token n, then call the lambda on the next n tokens of type T.
+	// Returns the number of read tokens
+	template<class Func>
+	UInt next_counted_tokens(Func&& func)
 	{
-		next_many_tokens(it, next_token<unsigned>());
+		return next_many_tokens(next_token<UInt>(), func);
 	}
 
 	/*
@@ -117,17 +144,15 @@ public:
 	// Fancy macro interface
 	#define NEXT(TYPE) tokens.next_token<TYPE>()
 	#define LOAD(...) tokens.load_tokens(__VA_ARGS__)
-	#define FILL(CONTAINER) tokens.next_many_tokens(CONTAINER)
-	#define FILL_IT(ITERATOR, N) tokens.next_many_tokens(ITERATOR, N)
-	#define COUNTED(ITERATOR) tokens.next_many_tokens(ITERATOR)
+	#define FILL(CONTAINER) tokens.fill(CONTAINER)
 	#define DONE() tokens.done()
 
 	#define MUT_TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
 	#define TOKEN(TYPE, NAME) MUT_TOKEN(TYPE const, NAME)
-	
+
 	#define TOK_INT(NAME) TOKEN(Int, NAME)
 	#define TOK_STR(NAME) TOKEN(string, NAME)
-	
+
 	#define TOK_CONTAINER(TYPE, NAME, SIZE) TYPE NAME{ SIZE }; FILL(NAME)
 	#define TOK_VEC(TYPE, NAME, SIZE) TOK_CONTAINER(vector<TYPE>, NAME, SIZE)
 	#define TOK_INTVEC(NAME, SIZE) TOK_VEC(Int, NAME, SIZE)
@@ -149,7 +174,7 @@ public:
 };
 
 template<class Solution>
-inline void print_case(
+void print_case(
 	const Solution& solution,
 	const unsigned case_id,
 	ostream& ostr)
@@ -161,9 +186,8 @@ inline void print_case(
 #endif
 }
 
-
 template<class Solver>
-inline void solve_code_jam(istream& istr, ostream& ostr)
+void solve_code_jam(istream& istr, ostream& ostr)
 {
 	Tokens tokens(istr);
 	Solver solver;
@@ -175,11 +199,11 @@ inline void solve_code_jam(istream& istr, ostream& ostr)
 
 #define SOLVER class Solver : public SolverBase
 
-#define SOLVE_CASE public: inline auto solve_case(Tokens& tokens) const
+#define PRE_SOLVE public: unsigned pre_solve(Tokens& tokens)
 
-#define PRE_SOLVE public: inline unsigned pre_solve(Tokens& tokens)
+#define SOLVE_CASE public: auto solve_case(Tokens& tokens) const
 
-#define BASIC_SOLVE SOLVER { SOLVE_CASE; }; \
-	inline auto Solver::solve_case(Tokens& tokens) const
+#define BASIC_SOLVE SOLVER { auto solve_case(Tokens&) const; }; \
+	auto Solver::solve_case(Tokens& tokens) const
 
 #define AUTOSOLVE int main() { solve_code_jam<Solver>(cin, cout); }

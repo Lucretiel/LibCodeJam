@@ -94,7 +94,7 @@ public:
 };
 
 template<class Solver>
-inline void threaded_solve_code_jam(istream& istr, ostream& ostr)
+void threaded_solve_code_jam(istream& istr, ostream& ostr)
 {
 	ThreadedTokens tokens(istr);
 	ThreadedPrinter printer(ostr);
