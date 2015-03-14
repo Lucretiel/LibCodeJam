@@ -26,6 +26,9 @@ from contextlib import contextmanager, suppress
 from inspect import isgeneratorfunction
 
 
+__all__ = ['autosolve, collects, cases, debug']
+
+
 # Set this variable to true in your code to force printing newlines between
 # "Case #" and the solution itself
 INSERT_NEWLINE = False
@@ -276,11 +279,11 @@ def autosolve(solver):
             solve_code_jam(solver, istr, ostr)
 
     return solver
+# TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
+# format on stdout. Force autosolve to make output be ascii when >redirecting
+# to a file.
 
 
 def debug(*args, **kwargs):
     '''print to stderr'''
     return print(*args, file=stderr, **kwargs)
-# TODO: Windows (sometimes) defaults to UTF-16 or some other ascii-incompatible
-# format on stdout. Force autosolve to make output be ascii when >redirecting
-# to a file.
