@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This code jam solution is powered by Nathan West's LibCodeJam; see
 # https://github.com/Lucretiel/LibCodeJam for source code and (ostensibly) some
 # documentation.

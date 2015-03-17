@@ -24,9 +24,10 @@ from sys import stdin, stdout, stderr
 from argparse import ArgumentParser
 from contextlib import contextmanager, suppress
 from inspect import isgeneratorfunction
+from functools import wraps
 
 
-__all__ = ['autosolve, collects, cases, debug']
+__all__ = ['autosolve', 'collects', 'cases', 'debug', 'apply']
 
 
 # Set this variable to true in your code to force printing newlines between
@@ -51,20 +52,20 @@ class Tokens:
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
 
-    def next_token(self, t=int):
+    def next_token(self, t):
         '''
         Read a single token of type `t`
         '''
         return t(next(self.tokens))
 
-    def next_many(self, n, t=int):
+    def next_many(self, n, t):
         '''
         Yield the next `n` tokens of type `t`
         '''
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted(self, t=int):
+    def next_counted(self, t):
         '''
         Read a token n, then yield n tokens of type `t`.
         '''
@@ -124,6 +125,17 @@ def collects(func):
     return collect_wrapper
 
 
+def progress(i, n):
+    if progress.enabled:
+        print(
+            '\r' + ('@' * i).ljust(n, '-'),
+            end='' if i != n else '\n',
+            file=stderr)
+
+
+progress.enabled = False
+
+
 def cases(n):
     '''
     This decorator helps with writing generator solvers. When applied to a
@@ -143,11 +155,16 @@ def cases(n):
                 return a + x
 
             yield from solve_case(tokens)
+
+    It also prints a progress bar to stderr, which can be enabled with the -p
+    option at the command line or by setting code_jam.progress.enabled to True
     '''
     def decorator(func):
         def cases_wrapper(*args, **kwargs):
-            for _ in range(n):
+            for i in range(n):
+                progress(i, n)
                 yield func(*args, **kwargs)
+            progress(n, n)
         return cases_wrapper
     return decorator
 
@@ -207,8 +224,7 @@ def function_solve(solver, istr, ostr):
     output for each case.
     '''
     def func_solve_wrapper(tokens):
-        for _ in range(tokens.next_token(int)):
-            yield solver(tokens)
+        return cases(tokens.next_token(int))(solver)(tokens)
 
     generator_solve(func_solve_wrapper, istr, ostr)
 
@@ -272,7 +288,11 @@ def autosolve(solver):
         help="The input file to use. Defaults to stdin")
     parser.add_argument('out_file', nargs='?', default=stdout,
         help="The file to write the solutions to. Defaults to stdout.")
+    parser.add_argument('--progress', '-p', action='store_true',
+        help="Enable printing a progress bar to stderr.")
     args = parser.parse_args()
+
+    progress.enabled = args.progress
 
     with smart_open(args.in_file, 'r', encoding='ascii') as istr:
         with smart_open(args.out_file, 'w', encoding='ascii') as ostr:
@@ -287,3 +307,12 @@ def autosolve(solver):
 def debug(*args, **kwargs):
     '''print to stderr'''
     return print(*args, file=stderr, **kwargs)
+
+
+def apply(t):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return t(func(*args, **kwargs))
+        return wrapper
+    return decorator
