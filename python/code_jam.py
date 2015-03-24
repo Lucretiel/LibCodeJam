@@ -54,9 +54,18 @@ class Tokens:
 
     def next_token(self, t):
         '''
-        Read a single token of type `t`
+        Read and return single token of type `t`
         '''
         return t(next(self.tokens))
+
+    def next_group(self, *types):
+        '''
+        Return tuple of tokens of each of the given types, in order:
+
+        name, age = tokens.next_group(str, int)
+        '''
+
+        return tuple(self.next_token(t) for t in types)
 
     def next_many(self, n, t):
         '''
@@ -65,15 +74,9 @@ class Tokens:
         for _ in range(n):
             yield self.next_token(t)
 
-    def next_counted(self, t):
-        '''
-        Read a token n, then yield n tokens of type `t`.
-        '''
-        return self.next_many(self.next_token(int), t)
-
     t = next_token
     m = next_many
-    c = next_counted
+    g = next_group
 
 
 def collects(func):
