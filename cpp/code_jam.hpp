@@ -73,6 +73,12 @@ public:
 		istr(&istr)
 	{}
 
+	template<class T>
+	void next_token(T& t)
+	{
+		stream() >> t;
+	}
+
 	/*
 	Get and return a single token. Useful for storing const data. The return
 	type removes const-qualifiers so that the return value can be used to
@@ -86,7 +92,7 @@ public:
 			"next_token cannot get a reference type");
 
 		MutableT token;
-		stream() >> token;
+		next_token(token);
 		return token;
 	}
 
@@ -94,13 +100,13 @@ public:
 	Fill 1 or more variables of arbitrary type with tokens, in order.
 	*/
 	template<class T, class... Rest>
-	void load_tokens(T& t, Rest&... rest)
+	void next_group(T& t, Rest&... rest)
 	{
-		stream() >> t;
-		load_tokens(rest...);
+		next_token(t);
+		next_group(rest...);
 	}
 
-	void load_tokens()
+	void next_group()
 	{}
 
 	// Fill a container with tokens
@@ -108,11 +114,20 @@ public:
 	void fill(Container& container)
 	{
 		for(auto& i : container)
-			stream() >> i;
+			next_token(i);
 	}
 
-	// Call some lambda on the next n tokens. Detects the type from the
-	// lambda's argument. Returns n.
+	/*
+	Call some lambda on the next n tokens. Detects the type from the lambda's
+	parameter. Returns n.
+
+	Example:
+
+	// Int detected as token type
+	tokens.next_many(5, [&vec](Int n)
+		{ vec.push_back(n); });
+
+	*/
 	template<class Func>
 	UInt next_many(const UInt n, Func&& func)
 	{
@@ -122,12 +137,30 @@ public:
 		return n;
 	}
 
-	// Read a token n, then call the lambda on the next n tokens. Detects the
-	// return type from the lambda's argument. Returns n.
-	template<class Func>
-	UInt next_counted(Func&& func)
+	class NextManyBlock
 	{
-		return next_many_tokens(next_token<UInt>(), func);
+	private:
+		Tokens& tokens;
+		UInt n;
+	public:
+		template<class Func>
+		UInt operator<< (Func&& func) const
+		{
+			return tokens.next_many(n, func);
+		}
+	};
+
+	/*
+	Block syntax for next_many. Used to support a macro wrapper for next_many.
+	Example:
+
+	tokens.next_many(5) << [&vec](Int n){vec.push_back(n);};
+	//SAME AS
+	MANY(5) [&vec](Int n){vec.push_back(n);};
+	*/
+	NextManyBlock next_many(const UInt n)
+	{
+		return NextManyBlock{*this, n};
 	}
 
 	/*
@@ -145,8 +178,9 @@ public:
 
 	// Fancy macro interface
 	#define NEXT(TYPE) tokens.next_token<TYPE>()
-	#define LOAD(...) tokens.load_tokens(__VA_ARGS__)
+	#define GROUP(...) tokens.load_tokens(__VA_ARGS__)
 	#define FILL(CONTAINER) tokens.fill(CONTAINER)
+	#define MANY(N) tokens.next_many(N) <<
 	#define DONE() tokens.done()
 
 	#define MUT_TOKEN(TYPE, NAME) TYPE NAME{ NEXT(TYPE) }
@@ -161,7 +195,7 @@ public:
 };
 
 /*
-Base class for solvers. The macros defined at the end of the library assist=
+Base class for solvers. The macros defined at the end of the library assist
 with creating the actual solver class. This class exists primarily to provide
 a default pre_solve implementation; this implementaton is simply shadowed if
 the client provides their own.

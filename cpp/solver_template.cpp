@@ -43,6 +43,12 @@ SOLVER
 	function is passed a Tokens object called Tokens; see also the Tokens macro
 	interface for quick use of this object. This function is declared
 	const; it cannot modify any class members while it is running.
+
+	Tokens macro interface:
+
+	NEXT(TYPE), GROUP(...), FILL(CONTAINER), MANY(N) [](){}
+	TOKEN(TYPE, NAME), MUT_TOKEN(TYPE, NAME), TOK_INT(NAME), TOK_STR(NAME)
+	TOK_CONTAINER(T, NAME, SIZE), TOK_VEC(T, NAME, SIZE), TOK_INTVEC(NAME, SIZE)
 	*/
 	SOLVE_CASE
 	{
