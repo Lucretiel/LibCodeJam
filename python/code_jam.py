@@ -27,7 +27,10 @@ from inspect import isgeneratorfunction
 from functools import wraps
 
 
-__all__ = ['autosolve', 'collects', 'cases', 'debug', 'apply']
+__all__ = []
+def export(thing):
+    __all__.append(thing.__name__)
+    return thing
 
 
 # Set this variable to true in your code to force printing newlines between
@@ -79,6 +82,7 @@ class Tokens:
     g = next_group
 
 
+@export
 def collects(func):
     '''
     This decorator allows a function to collect tokens. The function's
@@ -139,6 +143,7 @@ def progress(i, n):
 progress.enabled = False
 
 
+@export
 def cases(n):
     '''
     This decorator helps with writing generator solvers. When applied to a
@@ -258,6 +263,7 @@ def smart_open(filename, *args, **kwargs):
         yield filename
 
 
+@export
 def autosolve(solver):
     '''
     Decorator to immediately solve a code jam with a function when the file is
@@ -307,11 +313,13 @@ def autosolve(solver):
 # to a file.
 
 
+@export
 def debug(*args, **kwargs):
     '''print to stderr'''
     return print(*args, file=stderr, **kwargs)
 
 
+@export
 def apply(t):
     def decorator(func):
         @wraps(func)
