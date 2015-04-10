@@ -96,9 +96,9 @@ def collects(func):
 
         # This is the same as:
         def solve(_tokens):
-            a = tokens.next_token(int)
-            b = tokens.next_token(int)
-            s = tokens.next_token(str)
+            a = _tokens.next_token(int)
+            b = _tokens.next_token(int)
+            s = _tokens.next_token(str)
             tokens = _tokens
             return a + b
 
