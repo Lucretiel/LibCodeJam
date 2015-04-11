@@ -72,7 +72,7 @@ class Tokens:
 
     def next_many(self, n, t):
         '''
-        Yield the next `n` tokens of type `t`
+        Yield the next `n` tokens of type `t`.
         '''
         for _ in range(n):
             yield self.next_token(t)
