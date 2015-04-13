@@ -222,15 +222,47 @@ void print_case(
 #endif
 }
 
+class ProgressBar
+{
+private:
+	unsigned progress;
+	unsigned num_cases;
+	string bar;
+	
+	void write()
+	{
+		cerr << bar << progress < num_cases ? '\r' : '\n' << flush;
+	}
+public:
+	ProgressBar(unsigned num_cases):
+		progress(0),
+		num_cases(num_cases),
+		bar(num_cases, '-')
+	{
+		write();
+	}
+	
+	void update(unsigned case_id)
+	{
+		bar[case_id] = '@';
+		++progress;
+		write();
+	}
+};
+
 template<class Solver>
 void solve_code_jam(istream& istr, ostream& ostr)
 {
 	Tokens tokens(istr);
 	Solver solver;
 	const unsigned num_cases = solver.pre_solve(tokens);
+	ProgressBar progress(num_cases)
 
 	for(unsigned case_id = 0; case_id < num_cases; ++case_id)
+	{
 		print_case(solver.solve_case(tokens), case_id, ostr);
+		progress.update(case_id);
+	}
 }
 
 #define SOLVER class Solver : public SolverBase
