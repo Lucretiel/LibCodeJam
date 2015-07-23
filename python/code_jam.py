@@ -57,29 +57,24 @@ class Tokens:
 
     def next_token(self, t):
         '''
-        Read and return single token of type `t`
+        Read and return single token of type `t`, or a tuple of tokens
+        for the types (t0, t1...)
         '''
-        return t(next(self.tokens))
-
-    def next_group(self, *types):
-        '''
-        Return tuple of tokens of each of the given types, in order:
-
-        name, age = tokens.next_group(str, int)
-        '''
-
-        return tuple(self.next_token(t) for t in types)
+        if callable(t):
+            return t(next(self.tokens))
+        else:
+            return tuple(self.next_token(part) for part in t)
 
     def next_many(self, n, t):
         '''
-        Yield the next `n` tokens of type `t`.
+        Yield the next `n` tokens of type `t`. Uses next_token, so t may
+        also be a tuple of types, to yield token pairs or groups.
         '''
         for _ in range(n):
             yield self.next_token(t)
 
     t = next_token
     m = next_many
-    g = next_group
 
 
 @export
