@@ -112,30 +112,29 @@ def collects(func):
             ....
     '''
     from inspect import signature
-    params = tuple(signature(func).parameters.values())
+    params = tuple(signature(func).parameters.items())
 
     def collect_token_args(tokens):
         collected = {}
-        for param in params:
+        for name, param in params:
             annotation = param.annotation
             if annotation is param.empty:
-                to_yield = tokens
+                collected[name] = tokens
 
             elif callable(annotation) or not isinstance(annotation[0], (str, int)):
-                to_yield = tokens.next_token(annotation)
+                collected[name] = tokens.next_token(annotation)
 
             else:
                 length_or_name, t = annotation
-                if isinstance(length, int):
-                    to_yield = tokens.next_many(length_or_name, t)
+                if isinstance(length_or_name, int):
+                    collected[name] = tokens.next_many(length_or_name, t)
                 else:
-                    to_yield = tokens.next_many(collected[length_or_name], t)
+                    collected[name] = tokens.next_many(collected[length_or_name], t)
 
-            collected[param.name] = to_yield
-            yield to_yield
+        return collected
 
     def collect_wrapper(tokens):
-        return func(*collect_token_args(tokens))
+        return func(**collect_token_args(tokens))
 
     # solve_code_jam uses this flag to determine if a solver is a generator or
     # a per-case function.
