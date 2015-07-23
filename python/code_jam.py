@@ -112,11 +112,24 @@ def collects(func):
     params = tuple(signature(func).parameters.values())
 
     def collect_token_args(tokens):
+        collected = {}
         for param in params:
-            if param.annotation is not param.empty:
-                yield tokens.next_token(param.annotation)
+            annotation = param.annotation
+            if annotation is param.empty:
+                to_yield = tokens
+
+            elif callable(annotation) or not isinstance(annotation[0], (str, int)):
+                to_yield = tokens.next_token(annotation)
+
             else:
-                yield tokens
+                length_or_name, t = annotation
+                if isinstance(length, int):
+                    to_yield = tokens.next_many(length_or_name, t)
+                else:
+                    to_yield = tokens.next_many(collected[length_or_name], t)
+
+            collected[param.name] = to_yield
+            yield to_yield
 
     def collect_wrapper(tokens):
         return func(*collect_token_args(tokens))
