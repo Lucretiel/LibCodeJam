@@ -86,20 +86,23 @@ def collects(func):
     tokens instance and passed as an argument, with a type matching the
     annotation. Any other parameter is simply passed the Tokens instance
     instead of a new token.
+    
+    You can also specify a (length, type) pair to extract a group of tokens.
 
     Example:
 
         @collects
-        def solve(a: int, b: int, s: str, tokens):
-            return a + b
+        def solve(a: int, n: int, s: str, things: ('n', int), tokens):
+            return a + b + sum(things)
 
         # This is the same as:
         def solve(_tokens):
             a = _tokens.next_token(int)
-            b = _tokens.next_token(int)
+            n = _tokens.next_token(int)
             s = _tokens.next_token(str)
+            things = _tokens.next_many(n, int)
             tokens = _tokens
-            return a + b
+            return a + b + sum(things)
 
     It is designed to be used with the autosolve decorator, like so:
 
