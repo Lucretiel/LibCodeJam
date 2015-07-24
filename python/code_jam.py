@@ -24,7 +24,7 @@ from sys import stdin, stdout, stderr
 from argparse import ArgumentParser
 from contextlib import contextmanager, suppress
 from inspect import isgeneratorfunction
-from functools import wraps
+from functools import wraps, update_wrapper
 
 
 __all__ = []
@@ -145,9 +145,11 @@ def collects(func):
 def progress(i, n):
     if progress.enabled:
         print(
-            '\r' + ('@' * i).ljust(n, '-'),
+            '\r', ('@' * i), ('-' * (n - i)),
             end='' if i != n else '\n',
-            file=stderr)
+            sep='',
+            file=stderr,
+            flush=True)
 
 
 progress.enabled = False
@@ -254,9 +256,10 @@ def solve_code_jam(solver, istr, ostr):
     attribute and it is True, it is assumed to be a wrapper around a generator.
     '''
 
-    return (generator_solve
-        if getattr(solver, '_gen', False) or isgeneratorfunction(solver)
-        else function_solve)(solver, istr, ostr)
+    if getattr(solver, '_gen', False) or isgeneratorfunction(solver):
+        return generator_solve(solver, istr, ostr)
+    else:
+        return function_solve(solver, istr, ostr)
 
 
 @contextmanager
@@ -266,11 +269,13 @@ def smart_open(filename, *args, **kwargs):
     the filename argument isn't a string (for instance, if you pass stdin or
     stdout), it yields the object directly.
     '''
-    if isinstance(filename, (str, bytes, int)):
-        with open(filename, *args, **kwargs) as file:
-            yield file
-    else:
+    try:
+        file = open(filename, *args, **kwargs)
+    except TypeError:
         yield filename
+    else:
+        with file:
+            yield file
 
 
 @export
@@ -324,13 +329,37 @@ def autosolve(solver):
 
 
 @export
+def trace(func):
+    try:
+        from ipdb import runcall
+    except ImportError:
+        from pdb import runcall
+
+    if isgeneratorfunction(func):
+
+        # Set a trace at each entry into the generator
+        def trace_wrapper(*args, **kwargs):
+            gen = func(*args, **kwargs)
+            while True:
+                yield runcall(next, gen)
+
+    else:
+
+        # Set a trace when the function is called
+        def trace_wrapper(*args, **kwargs):
+            return runcall(func, *args, **kwargs)
+
+    return update_wrapper(trace_wrapper, func)
+
+
+@export
 def debug(*args, **kwargs):
     '''print to stderr'''
     return print(*args, file=stderr, **kwargs)
 
 
 @export
-def apply(t):
+def unroll(t):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
