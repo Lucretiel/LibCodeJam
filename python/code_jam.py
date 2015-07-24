@@ -86,7 +86,7 @@ def collects(func):
     tokens instance and passed as an argument, with a type matching the
     annotation. Any other parameter is simply passed the Tokens instance
     instead of a new token.
-    
+
     You can also specify a (length, type) pair to extract a group of tokens.
 
     Example:
@@ -111,25 +111,36 @@ def collects(func):
         def solve(...):
             ....
     '''
-    from inspect import signature
+    from inspect import signature, _empty
     params = tuple(signature(func).parameters.items())
+
+    def collect_token(annotation, collected, tokens):
+        # No annotation: give the whole tokens object
+        if annotation is _empty:
+            return tokens
+
+        # Callable (type) annotation, or annotation that *doesn't* include a
+        # length: single or group of tokens
+        elif callable(annotation) or not isinstance(annotation[0], (str, int)):
+            return tokens.next_token(annotation)
+
+        # annotation includes a length (as either an int, or a string
+        # referncing another token): create a token generator of the given type
+        else:
+            length_or_name, t = annotation
+            if isinstance(length_or_name, int):
+                return tokens.next_many(length_or_name, t)
+            else:
+                return tokens.next_many(collected[length_or_name], t)
 
     def collect_token_args(tokens):
         collected = {}
+
+        # Can't use a dictionary comprehension, as we need to update collected
+        # on a per-token basis, so that next_many token groups can reference
+        # previous tokens for the length.
         for name, param in params:
-            annotation = param.annotation
-            if annotation is param.empty:
-                collected[name] = tokens
-
-            elif callable(annotation) or not isinstance(annotation[0], (str, int)):
-                collected[name] = tokens.next_token(annotation)
-
-            else:
-                length_or_name, t = annotation
-                if isinstance(length_or_name, int):
-                    collected[name] = tokens.next_many(length_or_name, t)
-                else:
-                    collected[name] = tokens.next_many(collected[length_or_name], t)
+            collected[name] = collect_token(param.annotation, collected, tokens)
 
         return collected
 
@@ -145,9 +156,8 @@ def collects(func):
 def progress(i, n):
     if progress.enabled:
         print(
-            '\r', ('@' * i), ('-' * (n - i)),
+            '\r{}{}'.format('@' * i, '-' * (n - i)),
             end='' if i != n else '\n',
-            sep='',
             file=stderr,
             flush=True)
 
