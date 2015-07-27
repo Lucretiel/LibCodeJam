@@ -131,9 +131,11 @@ def collects(func):
             else:
                 length_or_name, t = annotation
                 if isinstance(length_or_name, int):
-                    collected[name] = tokens.next_many(length_or_name, t)
+                    collected[name] = tokens.next_many(
+                        length_or_name, t)
                 else:
-                    collected[name] = tokens.next_many(collected[length_or_name], t)
+                    collected[name] = tokens.next_many(
+                        eval(length_or_name, locals=collected), t)
 
         return collected
 
