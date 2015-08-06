@@ -121,9 +121,8 @@ def collects(func):
             if annotation is _empty:
                 collected[name] = tokens
     
-            # Callable (type) annotation, or annotation that *doesn't* include a
-            # length: single or group of tokens
-            elif callable(annotation) or not isinstance(annotation[0], (str, int)):
+            # Callable (type) annotation, or tuple of types: get a single token
+            elif callable(annotation) or all(callable(t) for t in annotation):
                 collected[name] = tokens.next_token(annotation)
     
             # annotation includes a length (as either an int, or a string
