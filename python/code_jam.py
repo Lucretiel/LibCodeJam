@@ -37,6 +37,10 @@ def export(thing):
 # "Case #" and the solution itself
 INSERT_NEWLINE = False
 
+# Set this variable to use a different solver template. This generally won't
+# need to be touched for a Google Code Jam, but is used here to allow for other
+# Code Jame-like events.
+CASE_TEMPLATE = "Case #{case}:{sep}{solution}"
 
 class Tokens:
     '''
@@ -207,11 +211,12 @@ def print_cases(solutions, ostr):
     real-time output even when in a pipeline, such as with head or tee.
     '''
     sep = '\n' if INSERT_NEWLINE else ' '
-    format_case = "Case #{}:".format
+    format_case = CASE_TEMPLATE.format
 
     with suppress(BrokenPipeError):
         for case, solution in enumerate(solutions, 1):
-            print(format_case(case), solution, sep=sep, file=ostr, flush=True)
+            print(format_case(case=case, sep=sep, solution=solution),
+                file=ostr, flush=True)
 
 
 def generator_solve(solver, istr, ostr):
