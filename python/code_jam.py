@@ -349,8 +349,11 @@ def trace(func):
         # Set a trace at each entry into the generator
         def trace_wrapper(*args, **kwargs):
             gen = func(*args, **kwargs)
-            while True:
-                yield runcall(next, gen)
+            try:
+                while True:
+                    yield runcall(next, gen)
+            except StopIteration:
+                pass
 
     else:
 
