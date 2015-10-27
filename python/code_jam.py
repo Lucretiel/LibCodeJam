@@ -116,12 +116,14 @@ def collects(func):
             ....
     '''
     from inspect import signature, _empty
-    params = tuple(signature(func).parameters.items())
+    annotations = tuple(
+        (name, param.annotation) for name, param in
+        signature(func).parameters.items())
 
     def collect_token_args(tokens):
         collected = {}
 
-        for name, param in params:
+        for name, annotation in annotations:
             if annotation is _empty:
                 collected[name] = tokens
     
@@ -130,15 +132,14 @@ def collects(func):
                 collected[name] = tokens.next_token(annotation)
     
             # annotation includes a length (as either an int, or a string
-            # referncing another token): create a token generator of the given type
+            # referncing another token): create a list of tokens of the given type
             else:
                 length_or_name, t = annotation
                 if isinstance(length_or_name, int):
-                    collected[name] = tokens.next_many(
-                        length_or_name, t)
+                    length = length_or_name
                 else:
-                    collected[name] = tokens.next_many(
-                        eval(length_or_name, locals=collected), t)
+                    length = eval(length_or_name, None, collected)
+                collected[name] = list(tokens.next_many(length, t))
 
         return collected
 
