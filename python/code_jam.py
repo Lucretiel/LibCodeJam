@@ -47,6 +47,7 @@ class Tokens:
     Helper class to read in tokens, either individually or in groups. A token
     is simply a whitespace-delimited group of characters.
     '''
+    #TODO: Add support for reading a full line as a token.
     @staticmethod
     def tokenize(istr):
         '''
