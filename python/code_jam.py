@@ -40,7 +40,7 @@ INSERT_NEWLINE = False
 # Set this variable to use a different solver template. This generally won't
 # need to be touched for a Google Code Jam, but is used here to allow for other
 # Code Jame-like events.
-CASE_TEMPLATE = "Case #{case}:{sep}{solution}"
+CASE_TEMPLATE = "Case #{case}:{sep}{solution}\n"
 
 class Tokens:
     '''
@@ -217,7 +217,7 @@ def print_cases(solutions, ostr):
     with suppress(BrokenPipeError):
         for case, solution in enumerate(solutions, 1):
             print(format_case(case=case, sep=sep, solution=solution),
-                file=ostr, flush=True)
+                  file=ostr, flush=True, end='')
 
 
 def generator_solve(solver, istr, ostr):
