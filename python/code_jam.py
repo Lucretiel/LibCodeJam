@@ -62,8 +62,9 @@ class Tokens:
 
     def next_token(self, t):
         '''
-        Read and return single token of type `t`, or a tuple of tokens
-        for the types (t0, t1...)
+        Read and return single token of type `t`, or a tuple of types
+        for the types (t0, t1...). Note that a type tuples may nest,
+        such as (t0, (t1, t2))
         '''
         if callable(t):
             return t(next(self.tokens))
