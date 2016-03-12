@@ -59,6 +59,15 @@ class Tokens:
 
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
+    
+    @classmethod
+    def is_token_type(cls, t):
+        if callable(t):
+            return True
+        elif isinstance(t, tuple):
+            return all(cls.is_token_type(part) for part in t)
+        else:
+            return False
 
     def next_token(self, t):
         '''
@@ -130,7 +139,7 @@ def collects(func):
                 collected[name] = tokens
     
             # Callable (type) annotation, or tuple of types: get a single token
-            elif callable(annotation) or all(callable(t) for t in annotation):
+            elif Tokens.is_token_type(annotation):
                 collected[name] = tokens.next_token(annotation)
     
             # annotation includes a length (as either an int, or a string
