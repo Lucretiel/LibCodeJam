@@ -11,7 +11,7 @@ from code_jam import *
 # quick reference:
 #   @autosolve, @collects, @cases(n)
 #   tokens.token(t), tokens.many(n, t)
-#   debug(expr), @unroll(t)gen
+#   debug(expr), @unroll(t) gen, @trace func|gen
 #   solve(int_token: int, list_token: ('int_token', str)):
 
 @autosolve
