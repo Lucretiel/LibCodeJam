@@ -88,8 +88,8 @@ class Tokens:
         for _ in range(n):
             yield self.next_token(t)
 
-    t = next_token
-    m = next_many
+    t = token = next_token
+    m = many = next_many
 
 
 @export
