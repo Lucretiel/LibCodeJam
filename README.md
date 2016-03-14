@@ -34,9 +34,7 @@ def solve(N: int,
     return sum(values)
 ```
 
-The `@autosolve` decorator sets up the solution function. It automatically sets up file parsing and output formatting. It reads the first token, **T**, and then calls your solver function **T** times, writing the return values. The `@collects` decorator sets up some magic token inputting– it examines your function signature, and supplies your function with tokens or lists of tokens based on the annotations. This allows you to focus on just writing a function to solve the problem.
-
-`@autosolve` also sets up optional file writing, via the first and second positional parameters (`infile` and `outfile`), as well as an optional progress bar with `-p`.
+The `@autosolve` decorator sets up the solution function. It automatically sets up file parsing and output formatting. It reads the first token, **T**, and then calls your solver function **T** times, writing the return values. The `@collects` decorator sets up some magic token inputting– it examines your function signature, and supplies your function with tokens or lists of tokens based on the annotations. This allows you to focus on just writing a function to solve the problem. The input file is read from stdin and the solution is written to stdout.
 
 Some code jams have some global data, shared between test cases. `@autosolve` handles that as well, using the `@cases` nested solver helper. For instance, let's say there's a problem where the input is a line with the values **T** and **X**. On the following **T** lines is a single int **N**. The soltion to test case *n* is **N<sub>n</sub>** + **X**. Here's the LibCodeJam solution:
 
