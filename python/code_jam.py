@@ -217,6 +217,13 @@ def cases(n):
     return decorator
 
 
+def stringify(solution):
+    if isinstance(solution, (list, tuple)):
+        return ' '.join(map(str, solution))
+    else:
+        return solution
+
+
 def print_cases(solutions, ostr):
     '''
     Format and print the solutions of a code jam to the file object `ostr`.
@@ -234,7 +241,7 @@ def print_cases(solutions, ostr):
     format_case = CASE_TEMPLATE.format
 
     with suppress(BrokenPipeError):
-        for case, solution in enumerate(solutions, 1):
+        for case, solution in enumerate(map(stringify, solutions), 1):
             print(format_case(case=case, sep=sep, solution=solution),
                   file=ostr, flush=True, end='')
 
