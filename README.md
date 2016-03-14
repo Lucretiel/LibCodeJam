@@ -16,13 +16,13 @@ import sys
 def tokens():
     for line in sys.stdin:
         for token in line.split():
-            yield token
+            yield int(token)
 tokens = tokens()
 
-num_cases = int(next(tokens))
+num_cases = next(tokens)
 for i in range(num_cases):
     num_values = next(tokens)
-    values = [int(next(token)) for _ in range(num_values)]
+    values = [next(tokens) for _ in range(num_values)]
     print("Case #{}: {}".format(i+1, sum(values)))
 ```
 
