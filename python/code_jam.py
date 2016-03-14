@@ -59,7 +59,7 @@ class Tokens:
 
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
-    
+
     @classmethod
     def is_token_type(cls, t):
         if callable(t):
@@ -137,19 +137,27 @@ def collects(func):
         for name, annotation in annotations:
             if annotation is _empty:
                 collected[name] = tokens
-    
+
             # Callable (type) annotation, or tuple of types: get a single token
             elif Tokens.is_token_type(annotation):
                 collected[name] = tokens.next_token(annotation)
-    
-            # annotation includes a length (as either an int, or a string
-            # referncing another token): create a list of tokens of the given type
+
+            # List tuple: This is a tuple of (length, type) and indicates a list
+            # of tokens. type may be either a single type or a tuple of types,
+            # passable to tokens.next_token. length may be:
+            #   - an int: The list has this many values
+            #   - a string: The string is evaluated as a python expression, using
+            #     the tokens previously parsed.
+            #   - None: A single token int token is read, and becomes the length
+            #     of the list.
             else:
-                length_or_name, t = annotation
-                if isinstance(length_or_name, int):
-                    length = length_or_name
+                length_marker, t = annotation
+                if isinstance(length_marker, int):
+                    length = length_marker
+                elif length_marker is None:
+                    length = tokens.next_token(int)
                 else:
-                    length = eval(length_or_name, None, collected)
+                    length = eval(length_marker, None, collected)
                 collected[name] = list(tokens.next_many(length, t))
 
         return collected
@@ -335,9 +343,12 @@ def autosolve(solver):
         help="The file to write the solutions to. Defaults to stdout.")
     parser.add_argument('--progress', '-p', action='store_true',
         help="Enable printing a progress bar to stderr.")
+    parser.add_argument('--no-debug', '-d', action='store_false',
+        help="Disable debug printing,")
     args = parser.parse_args()
 
     progress.enabled = args.progress
+    debug.enabled = args.no_debug
 
     with smart_open(args.in_file, 'r', encoding='ascii') as istr:
         with smart_open(args.out_file, 'w', encoding='ascii') as ostr:
@@ -379,8 +390,10 @@ def trace(func):
 @export
 def debug(*args, **kwargs):
     '''print to stderr'''
-    return print(*args, file=stderr, **kwargs)
+    if debug.enabled:
+        return print(*args, file=stderr, **kwargs)
 
+debug.enabled = True
 
 @export
 def unroll(t):
