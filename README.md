@@ -13,12 +13,16 @@ In plain python, this looks like:
 ```python
 import sys
 
-istr = sys.stdin
+def tokens():
+    for line in sys.stdin:
+        for token in line.split():
+            yield token
+tokens = tokens()
 
-num_cases = int(next(istr))
+num_cases = int(next(tokens))
 for i in range(num_cases):
-    line = next(istr)
-    values = [int(x) for x in line.split()[1:]]
+    num_values = next(tokens)
+    values = [int(next(token)) for _ in range(num_values)]
     print("Case #{}: {}".format(i+1, sum(values)))
 ```
 
