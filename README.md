@@ -38,7 +38,7 @@ The `@autosolve` decorator sets up the solution function. It automatically sets 
 
 `@autosolve` also sets up optional file writing, via the first and second positional parameters (`infile` and `outfile`), as well as an optional progress bar with `-p`.
 
-Some code jams have some global data, shared between test cases. `@autosolve` handles that as well, using the `@cases` nested solver helper. For instance, let's say there's a problem where the input is a line with the values **T** and **X**. On the following **T** lines is a single int **N**. Each test case solution is **N<sub>1</sub>** + **X**. Here's the LibCodeJam solution:
+Some code jams have some global data, shared between test cases. `@autosolve` handles that as well, using the `@cases` nested solver helper. For instance, let's say there's a problem where the input is a line with the values **T** and **X**. On the following **T** lines is a single int **N**. The soltion to test case *n* is **N<sub>1</sub>** + **X**. Here's the LibCodeJam solution:
 
 ```python
 from code_jam import *
