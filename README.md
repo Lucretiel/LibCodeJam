@@ -29,7 +29,8 @@ from code_jam import *
 
 @autosolve
 @collects
-def solve(N: int, values: ('N', int)):
+def solve(N: int,
+          values: ('N', int)):
     return sum(values)
 ```
 
