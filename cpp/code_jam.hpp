@@ -44,13 +44,13 @@ private:
 	{
 	private:
 		template <U> struct functor_traits {};
-		template <class Ret, class Arg>
-		struct functor_traits<Ret(T::*)(Arg)>
+		template <class Ret, class U, class Arg>
+		struct functor_traits<Ret(U::*)(Arg)>
 		{
 			typedef Arg arg_type;
 		};
-		template <class Ret, class Arc>
-		struct functor_traits<Ret(T::*)(Arg) const>
+		template <class Ret, class, U, class Arc>
+		struct functor_traits<Ret(U::*)(Arg) const>
 		{
 			typedef Arg arg_type
 		};
