@@ -40,9 +40,23 @@ private:
 
 	// Via http://stackoverflow.com/q/7943525
 	template<class T>
-	struct function_traits :
-		public function_traits<decltype(&decay<T>::type::operator())>
-	{};
+	struct function_traits
+	{
+	private:
+		template <U> stuct functor_traits {};
+		template <class Ret, class Arg>
+		struct functor_traits<Ret(T::*)(Arg)>
+		{
+			typedef Arg arg_type;
+		};
+		template <class Ret, class Arc>
+		struct functor_traits<Ret(T::*)(Arg) const>
+		{
+			typedef Arg arg_type
+		};
+	public:
+		typdef typename functor_traits<decltype(&decay<T>::type::operator())>::arg_type arg_type
+	};
 
 	template<class Ret, class Arg>
 	struct function_traits<Ret(Arg)>
@@ -52,18 +66,6 @@ private:
 
 	template<class Ret, class Arg>
 	struct function_traits<Ret(*)(Arg)>
-	{
-		typedef Arg arg_type;
-	};
-
-	template<class T, class Ret, class Arg>
-	struct function_traits<Ret(T::*)(Arg)>
-	{
-		typedef Arg arg_type;
-	};
-
-	template<class T, class Ret, class Arg>
-	struct function_traits<Ret(T::*)(Arg) const>
 	{
 		typedef Arg arg_type;
 	};
