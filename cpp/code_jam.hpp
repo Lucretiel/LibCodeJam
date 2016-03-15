@@ -49,7 +49,7 @@ private:
 		{
 			typedef Arg arg_type;
 		};
-		template <class Ret, class, U, class Arc>
+		template <class Ret, class, U, class Arg>
 		struct functor_traits<Ret(U::*)(Arg) const>
 		{
 			typedef Arg arg_type
