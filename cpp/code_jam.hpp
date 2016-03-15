@@ -55,7 +55,7 @@ private:
 			typedef Arg arg_type
 		};
 	public:
-		typdef typename functor_traits<decltype(&decay<T>::type::operator())>::arg_type arg_type
+		typedef typename functor_traits<decltype(&decay<T>::type::operator())>::arg_type arg_type
 	};
 
 	template<class Ret, class Arg>
