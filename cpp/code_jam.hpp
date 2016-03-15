@@ -43,7 +43,7 @@ private:
 	struct function_traits
 	{
 	private:
-		template <U> stuct functor_traits {};
+		template <U> struct functor_traits {};
 		template <class Ret, class Arg>
 		struct functor_traits<Ret(T::*)(Arg)>
 		{
