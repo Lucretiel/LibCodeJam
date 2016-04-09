@@ -402,11 +402,12 @@ def debug(*args, **kwargs):
 
 debug.enabled = True
 
+
 @export
 def unroll(t):
     def decorator(func):
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def unroll_wrapper(*args, **kwargs):
             return t(func(*args, **kwargs))
-        return wrapper
+        return unroll_wrapper
     return decorator

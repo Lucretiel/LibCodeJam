@@ -6,13 +6,14 @@
 
 from code_jam import *
 
-#code_jam.INSERT_NEWLINE = True
+# import code_jam; code_jam.INSERT_NEWLINE = True
 
 # quick reference:
 #   @autosolve, @collects, @cases(n)
 #   tokens.token(t), tokens.many(n, t)
 #   debug(expr), @unroll(t)gen
 #   solve(int_token: int, list_token: ('int_token', str), other_list: (None, float)):
+
 
 @autosolve
 @collects
