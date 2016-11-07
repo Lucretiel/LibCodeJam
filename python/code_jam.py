@@ -20,14 +20,17 @@ Utility library for solving code jams. Handles input tokenization and output
 formatting.
 '''
 
-from sys import stdin, stdout, stderr
 from argparse import ArgumentParser
 from contextlib import contextmanager, suppress
-from inspect import isgeneratorfunction
 from functools import wraps, update_wrapper
+from inspect import isgeneratorfunction
+from inspect import signature, _empty
+from sys import stdin, stdout, stderr
 
 
 __all__ = []
+
+
 def export(thing):
     __all__.append(thing.__name__)
     return thing
@@ -42,12 +45,22 @@ INSERT_NEWLINE = False
 # Code Jame-like events.
 CASE_TEMPLATE = "Case #{case}:{sep}{solution}\n"
 
+
+def is_token_type(t):
+    if callable(t):
+        return True
+    elif isinstance(t, tuple):
+        return all(is_token_type(part) for part in t)
+    else:
+        return False
+
+
 class Tokens:
     '''
     Helper class to read in tokens, either individually or in groups. A token
     is simply a whitespace-delimited group of characters.
     '''
-    #TODO: Add support for reading a full line as a token.
+    # TODO: Add support for reading a full line as a token.
     @staticmethod
     def tokenize(istr):
         '''
@@ -59,15 +72,6 @@ class Tokens:
 
     def __init__(self, stream):
         self.tokens = self.tokenize(stream)
-
-    @classmethod
-    def is_token_type(cls, t):
-        if callable(t):
-            return True
-        elif isinstance(t, tuple):
-            return all(cls.is_token_type(part) for part in t)
-        else:
-            return False
 
     def next_token(self, t):
         '''
@@ -90,6 +94,27 @@ class Tokens:
 
     t = token = next_token
     m = many = next_many
+
+
+def collect_plan(annotation):
+    if annotation is _empty:
+        return lambda tokens, collected: tokens
+    elif is_token_type(annotation):
+        return lambda tokens, collected: tokens.token(annotation)
+    else:
+        length_marker, t = annotation
+        if isinstance(length_marker, int):
+            return lambda tokens, collected: list(
+                tokens.many(length_marker, t)
+            )
+        elif length_marker is None:
+            return lambda tokens, collected: list(
+                tokens.many(tokens.token(int), t)
+            )
+        else:
+            return lambda tokens, collected: list(
+                tokens.many(eval(length_marker, None, collected), t)
+            )
 
 
 @export
@@ -126,39 +151,16 @@ def collects(func):
         def solve(...):
             ....
     '''
-    from inspect import signature, _empty
-    annotations = tuple(
-        (name, param.annotation) for name, param in
-        signature(func).parameters.items())
+    token_plan = [
+        (name, collect_plan(param.annotation)) for name, param in
+        signature(func).parameters.items()
+    ]
 
     def collect_token_args(tokens):
         collected = {}
 
-        for name, annotation in annotations:
-            if annotation is _empty:
-                collected[name] = tokens
-
-            # Callable (type) annotation, or tuple of types: get a single token
-            elif Tokens.is_token_type(annotation):
-                collected[name] = tokens.next_token(annotation)
-
-            # List tuple: This is a tuple of (length, type) and indicates a list
-            # of tokens. type may be either a single type or a tuple of types,
-            # passable to tokens.next_token. length may be:
-            #   - an int: The list has this many values
-            #   - a string: The string is evaluated as a python expression, using
-            #     the tokens previously parsed.
-            #   - None: A single token int token is read, and becomes the length
-            #     of the list.
-            else:
-                length_marker, t = annotation
-                if isinstance(length_marker, int):
-                    length = length_marker
-                elif length_marker is None:
-                    length = tokens.next_token(int)
-                else:
-                    length = eval(length_marker, None, collected)
-                collected[name] = list(tokens.next_many(length, t))
+        for name, plan in token_plan:
+            collected[name] = plan(tokens, collected)
 
         return collected
 
@@ -399,6 +401,7 @@ def debug(*args, **kwargs):
     '''print to stderr'''
     if debug.enabled:
         return print(*args, file=stderr, **kwargs)
+
 
 debug.enabled = True
 
