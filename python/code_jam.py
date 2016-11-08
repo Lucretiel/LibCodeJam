@@ -102,19 +102,20 @@ def collect_plan(annotation):
     elif is_token_type(annotation):
         return lambda tokens, collected: tokens.token(annotation)
     else:
-        length_marker, t = annotation
-        if isinstance(length_marker, int):
-            return lambda tokens, collected: list(
-                tokens.many(length_marker, t)
-            )
-        elif length_marker is None:
-            return lambda tokens, collected: list(
-                tokens.many(tokens.token(int), t)
-            )
+        if len(annotation) == 2:
+            length_marker, t = annotation
+            container = list
         else:
-            return lambda tokens, collected: list(
-                tokens.many(eval(length_marker, None, collected), t)
-            )
+            length_marker, t, container = annotation
+
+        if isinstance(length_marker, int):
+            length = lambda tokens, collected: length_marker
+        elif length_marker is None:
+            length = lambda tokens, collected: tokens.token(int)
+        else:
+            length = lambda tokens, collected: eval(length_marker, None, collected)
+
+        return lambda tokens, collected: container(tokens.many(length(tokens, collected), t))
 
 
 @export
