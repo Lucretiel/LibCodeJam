@@ -8,7 +8,7 @@ from code_jam import *
 
 
 # Uncomment if you want a newline between the "Case #" and the actual solution
-#code_jam.INSERT_NEWLINE = True
+# import code_jam; code_jam.INSERT_NEWLINE = True
 
 # Example:
 #
