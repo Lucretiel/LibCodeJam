@@ -415,3 +415,25 @@ def unroll(t):
             return t(func(*args, **kwargs))
         return unroll_wrapper
     return decorator
+
+
+@export
+def check(index):
+    try:
+        from ipdb import runcall
+    except ImportError:
+        from pdb import runcall
+
+    def decorator(func):
+        i = 0
+
+        @wraps(func)
+        def check_wrapper(*args, **kwargs):
+            nonlocal i
+            i = i + 1
+            if i == index:
+                return runcall(func, *args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        return check_wrapper
+    return decorator
