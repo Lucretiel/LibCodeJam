@@ -52,6 +52,7 @@ def is_token_type(t):
     elif isinstance(t, tuple):
         return all(is_token_type(part) for part in t)
     else:
+        #TODO: support namedtuple
         return False
 
 
