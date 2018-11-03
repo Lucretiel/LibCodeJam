@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::io;
+use std::io::{self, Write};
 
 #[derive(Debug)]
 pub struct CasePrintError {
@@ -12,7 +12,7 @@ impl Display for CasePrintError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
-            "Error writing solution to Case #{}: {}",
+            "Error writing solution for Case #{}: {}",
             self.case, self.error
         )
     }
@@ -45,11 +45,17 @@ pub trait Printer: Sized {
 macro_rules! printer_pattern {
 	($($printer:ident : $pattern:expr ;)+) => ($(
         #[derive(Debug)]
-        pub struct $printer<W: io::Write>(pub W);
+        pub struct $printer<W: Write>(pub io::BufWriter<W>);
 
-        impl<W: io::Write> Printer for $printer<W> {
+        impl<W: Write> $printer<W> {
+            pub fn new(writer: W) -> Self {
+                $printer(io::BufWriter::new(writer))
+            }
+        }
+
+        impl<W: Write> Printer for $printer<W> {
             fn print_solution(&mut self, case: u32, solution: impl Display) -> io::Result<()> {
-                writeln!(self.0, $pattern, case=case, solution=solution)?;
+                write!(self.0, $pattern, case=case, solution=solution)?;
                 self.0.flush()
             }
         }
@@ -57,6 +63,6 @@ macro_rules! printer_pattern {
 }
 
 printer_pattern! {
-    StandardPrinter: "Case #{case}: {solution}";
-    NewlinePrinter: "Case #{case}:\n{solution}";
+    StandardPrinter: "Case #{case}: {solution}\n";
+    NewlinePrinter: "Case #{case}:\n{solution}\n";
 }

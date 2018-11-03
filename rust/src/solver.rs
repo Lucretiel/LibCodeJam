@@ -100,7 +100,7 @@ pub trait IntoMaybeSolver<T>: Solver<Solution = Option<T>> + Sized {
 
 impl<T, S> IntoMaybeSolver<S> for T where T: Solver<Solution = Option<S>> {}
 
-pub fn solve_with<CD, S, F: Fn(CD) -> S>(solver_fn: F) -> FnSolver<F, CD, S> {
+pub fn solver<CD, S, F: Fn(CD) -> S>(solver_fn: F) -> FnSolver<F, CD, S> {
     FnSolver {
         solver_fn,
         case_phantom: PhantomData,
@@ -108,9 +108,7 @@ pub fn solve_with<CD, S, F: Fn(CD) -> S>(solver_fn: F) -> FnSolver<F, CD, S> {
     }
 }
 
-pub fn global_solve_with<GD, CD, S, F: Fn(&GD, CD) -> S>(
-    solver_fn: F,
-) -> GlobalFnSolver<F, GD, CD, S> {
+pub fn global_solver<GD, CD, S, F: Fn(&GD, CD) -> S>(solver_fn: F) -> GlobalFnSolver<F, GD, CD, S> {
     GlobalFnSolver {
         solver_fn,
         global_phantom: PhantomData,

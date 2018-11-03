@@ -1,29 +1,20 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
+use std::iter::{FromIterator, FusedIterator, TrustedLen};
+use std::marker::PhantomData;
+use std::ops::Try;
 use std::str::{from_utf8, Utf8Error};
 
-use crate::data::collection::{Collection, CollectionError};
-use crate::data::group::Group;
-use crate::data::token::{Token, TokenError};
+use derive_more::*;
 
-#[derive(Debug)]
+use crate::data::group::Group;
+
+#[derive(Debug, From)]
 pub enum LoadError {
     Io(io::Error),
     Utf8Error(Utf8Error),
     OutOfTokens,
-}
-
-impl From<io::Error> for LoadError {
-    fn from(err: io::Error) -> Self {
-        LoadError::Io(err)
-    }
-}
-
-impl From<Utf8Error> for LoadError {
-    fn from(err: Utf8Error) -> Self {
-        LoadError::Utf8Error(err)
-    }
 }
 
 impl Display for LoadError {
@@ -46,32 +37,93 @@ impl Error for LoadError {
     }
 }
 
+#[derive(Debug)]
+pub struct CollectionError<E: Error> {
+    index: usize,
+    error: E,
+}
+
+impl<E: Error> Display for CollectionError<E> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "error loading collection at index {}: {}",
+            self.index, self.error
+        )
+    }
+}
+
+impl<E: Error> Error for CollectionError<E> {
+    fn cause(&self) -> Option<&Error> {
+        Some(&self.error)
+    }
+}
+
 pub trait Tokens: Sized {
     fn next_raw(&mut self) -> Result<&str, LoadError>;
-
-    fn next_token<T: Token>(&mut self) -> Result<T, TokenError<T::Error>> {
-        self.next_raw()
-            .map_err(TokenError::LoadError)
-            .and_then(|tok| {
-                T::from_raw(tok).map_err(|err| TokenError::ParseError {
-                    err,
-                    tok: tok.to_string(),
-                })
-            })
-    }
 
     fn next<T: Group>(&mut self) -> Result<T, T::Error> {
         T::from_tokens(self)
     }
 
-    fn collect<C, T>(&mut self, count: usize) -> Result<C, CollectionError<T::Error>>
-    where
-        C: Collection<Item = T>,
-        T: Group,
-    {
-        C::from_tokens(self, count)
+    fn collect<T: Group, C: FromIterator<T>>(
+        &mut self,
+        count: usize,
+    ) -> Result<C, CollectionError<T::Error>> {
+        TokensIter::new(self)
+            .take(count)
+            .enumerate()
+            .map(|(index, result)| result.map_err(|error| CollectionError { index, error }))
+            .collect()
     }
 }
+
+#[derive(Debug)]
+struct TokensIter<'a, T: Tokens, G: Group> {
+    tokens: &'a mut T,
+    phantom: PhantomData<G>,
+}
+
+impl<'a, T: 'a + Tokens, G: Group> TokensIter<'a, T, G> {
+    fn new(tokens: &'a mut T) -> Self {
+        TokensIter {
+            tokens,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Tokens, G: Group> Iterator for TokensIter<'a, T, G> {
+    type Item = Result<G, G::Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.tokens.next())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (::std::usize::MAX, None)
+    }
+
+    fn try_fold<B, F, R>(&mut self, mut accum: B, mut fold: F) -> R
+    where
+        F: FnMut(B, Self::Item) -> R,
+        R: Try<Ok = B>,
+    {
+        loop {
+            accum = fold(accum, self.tokens.next())?
+        }
+    }
+}
+
+impl<'a, T: Tokens, G: Group> ExactSizeIterator for TokensIter<'a, T, G> {
+    // Technically a lie, but we rely on .take to constrain it.
+    fn len(&self) -> usize {
+        ::std::usize::MAX
+    }
+}
+
+impl<'a, T: Tokens, G: Group> FusedIterator for TokensIter<'a, T, G> {}
+unsafe impl<'a, T: Tokens, G: Group> TrustedLen for TokensIter<'a, T, G> {}
 
 #[derive(Debug)]
 struct TokenBuffer(Vec<u8>);
@@ -84,10 +136,7 @@ impl TokenBuffer {
         self.0.clear();
         TokenBufferLock(&mut self.0)
     }
-}
 
-impl TokenBuffer {
-    #[inline(always)]
     fn new() -> Self {
         Self::with_buf(Vec::with_capacity(1024))
     }
@@ -103,7 +152,7 @@ impl<'a> TokenBufferLock<'a> {
     }
 
     fn complete(self) -> Result<&'a str, LoadError> {
-        from_utf8(self.0).map_err(LoadError::from)
+        from_utf8(self.0).map_err(LoadError::Utf8Error)
     }
 }
 
@@ -115,7 +164,7 @@ pub struct TokensReader<R: io::BufRead> {
 impl<R: io::BufRead> TokensReader<R> {
     pub fn new(reader: R) -> Self {
         TokensReader {
-            reader: reader,
+            reader,
             token: TokenBuffer::new(),
         }
     }
@@ -134,11 +183,12 @@ impl<R: io::BufRead> Tokens for TokensReader<R> {
     fn next_raw(&mut self) -> Result<&str, LoadError> {
         use std::io::ErrorKind::Interrupted;
 
+        // TODO: clean this up when NLL is ready
         // Clear leading whitespace
         let final_leading_ws = loop {
             let leading_ws = match self.reader.fill_buf() {
-                Err(ref e) if e.kind() == Interrupted => continue,
-                Err(e) => return Err(e.into()),
+                Err(ref err) if err.kind() == Interrupted => continue,
+                Err(err) => return Err(LoadError::Io(err)),
                 Ok([]) => return Err(LoadError::OutOfTokens),
                 Ok(buf) => match buf.iter().position(|byte| !byte.is_ascii_whitespace()) {
                     Some(i) => break i,
@@ -154,8 +204,8 @@ impl<R: io::BufRead> Tokens for TokensReader<R> {
 
         let final_amt = loop {
             let amt = match self.reader.fill_buf() {
-                Err(ref e) if e.kind() == Interrupted => continue,
-                Err(e) => return Err(e.into()),
+                Err(ref err) if err.kind() == Interrupted => continue,
+                Err(err) => return Err(LoadError::Io(err)),
                 Ok([]) => return token_buf.complete(),
                 Ok(buf) => match buf.iter().position(u8::is_ascii_whitespace) {
                     Some(i) => {
@@ -173,5 +223,16 @@ impl<R: io::BufRead> Tokens for TokensReader<R> {
         self.reader.consume(final_amt);
 
         token_buf.complete()
+    }
+}
+
+#[derive(Debug)]
+pub struct TokensFromIterator<'a, T: Iterator<Item = &'a str>> {
+    iter: T,
+}
+
+impl<'a, T: Iterator<Item = &'a str>> Tokens for TokensFromIterator<'a, T> {
+    fn next_raw(&mut self) -> Result<&str, LoadError> {
+        self.iter.next().ok_or_else(|| LoadError::OutOfTokens)
     }
 }

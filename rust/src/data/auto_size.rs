@@ -1,12 +1,14 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
-use crate::data::collection::Collection;
-use crate::data::collection::CollectionError;
+use derive_more::*;
+
 use crate::data::group::{Group, UsizeTokenError};
+use crate::tokens::CollectionError;
 use crate::tokens::Tokens;
 
 #[derive(Debug, From)]
@@ -36,12 +38,12 @@ impl<E: Error> Error for AutoSizeError<E> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AutoSize<C, T> {
+pub struct AutoSize<T: Group, C: FromIterator<T>> {
     pub collection: C,
     phantom: PhantomData<T>,
 }
 
-impl<C, T> Deref for AutoSize<C, T> {
+impl<T: Group, C: FromIterator<T>> Deref for AutoSize<T, C> {
     type Target = C;
 
     fn deref(&self) -> &C {
@@ -49,34 +51,30 @@ impl<C, T> Deref for AutoSize<C, T> {
     }
 }
 
-impl<C, T> DerefMut for AutoSize<C, T> {
+impl<T: Group, C: FromIterator<T>> DerefMut for AutoSize<T, C> {
     fn deref_mut(&mut self) -> &mut C {
         &mut self.collection
     }
 }
 
-impl<C, T> AsRef<C> for AutoSize<C, T> {
+impl<T: Group, C: FromIterator<T>> AsRef<C> for AutoSize<T, C> {
     fn as_ref(&self) -> &C {
         &self.collection
     }
 }
 
-impl<C, T> AsMut<C> for AutoSize<C, T> {
+impl<T: Group, C: FromIterator<T>> AsMut<C> for AutoSize<T, C> {
     fn as_mut(&mut self) -> &mut C {
         &mut self.collection
     }
 }
 
-impl<C, T> Group for AutoSize<C, T>
-where
-    C: Collection<Item = T>,
-    T: Group,
-{
+impl<C: FromIterator<T>, T: Group> Group for AutoSize<T, C> {
     type Error = AutoSizeError<T::Error>;
 
     fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Error> {
         let size = tokens.next()?;
-        Ok(Self {
+        Ok(AutoSize {
             collection: tokens.collect(size)?,
             phantom: PhantomData,
         })

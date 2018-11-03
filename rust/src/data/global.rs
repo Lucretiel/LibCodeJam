@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use derive_more::*;
+
 use crate::data::group::{Group, UsizeTokenError};
 use crate::tokens::Tokens;
 
@@ -106,7 +108,7 @@ impl<T: Group> LoadGlobalData for CountPrefix<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, From, Deref, DerefMut)]
+#[derive(Debug, Clone, Copy, From, Deref, DerefMut, Default)]
 pub struct CountSuffix<T>(T);
 
 impl<T> AsRef<T> for CountSuffix<T> {
