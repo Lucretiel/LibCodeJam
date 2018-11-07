@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::iter::FromIterator;
-use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
@@ -37,13 +36,28 @@ impl<E: Error> Error for AutoSizeError<E> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AutoSize<T: Group, C: FromIterator<T>> {
-    pub collection: C,
-    phantom: PhantomData<T>,
+pub trait Collection: IntoIterator + FromIterator<<Self as IntoIterator>::Item> {}
+
+impl<C> Collection for C
+where
+    C: IntoIterator,
+    C: FromIterator<<C as IntoIterator>::Item>,
+{
 }
 
-impl<T: Group, C: FromIterator<T>> Deref for AutoSize<T, C> {
+#[derive(Debug, Clone)]
+pub struct AutoSize<C: Collection>
+where
+    C::Item: Group,
+{
+    pub count: usize,
+    pub collection: C,
+}
+
+impl<C: Collection> Deref for AutoSize<C>
+where
+    C::Item: Group,
+{
     type Target = C;
 
     fn deref(&self) -> &C {
@@ -51,32 +65,80 @@ impl<T: Group, C: FromIterator<T>> Deref for AutoSize<T, C> {
     }
 }
 
-impl<T: Group, C: FromIterator<T>> DerefMut for AutoSize<T, C> {
+impl<C: Collection> DerefMut for AutoSize<C>
+where
+    C::Item: Group,
+{
     fn deref_mut(&mut self) -> &mut C {
         &mut self.collection
     }
 }
 
-impl<T: Group, C: FromIterator<T>> AsRef<C> for AutoSize<T, C> {
+impl<C: Collection> AsRef<C> for AutoSize<C>
+where
+    C::Item: Group,
+{
     fn as_ref(&self) -> &C {
         &self.collection
     }
 }
 
-impl<T: Group, C: FromIterator<T>> AsMut<C> for AutoSize<T, C> {
+impl<C: Collection> AsMut<C> for AutoSize<C>
+where
+    C::Item: Group,
+{
     fn as_mut(&mut self) -> &mut C {
         &mut self.collection
     }
 }
 
-impl<C: FromIterator<T>, T: Group> Group for AutoSize<T, C> {
-    type Error = AutoSizeError<T::Error>;
+impl<C: Collection> IntoIterator for AutoSize<C>
+where
+    C::Item: Group,
+{
+    type Item = C::Item;
+    type IntoIter = C::IntoIter;
 
-    fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Error> {
-        let size = tokens.next()?;
-        Ok(AutoSize {
-            collection: tokens.collect(size)?,
-            phantom: PhantomData,
-        })
+    fn into_iter(self) -> Self::IntoIter {
+        self.collection.into_iter()
+    }
+}
+
+impl<'a, C: Collection> IntoIterator for &'a AutoSize<C>
+where
+    C::Item: Group,
+    &'a C: IntoIterator,
+{
+    type Item = <&'a C as IntoIterator>::Item;
+    type IntoIter = <&'a C as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.collection).into_iter()
+    }
+}
+
+impl<'a, C: Collection> IntoIterator for &'a mut AutoSize<C>
+where
+    C::Item: Group,
+    &'a mut C: IntoIterator,
+{
+    type Item = <&'a mut C as IntoIterator>::Item;
+    type IntoIter = <&'a mut C as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.collection).into_iter()
+    }
+}
+
+impl<C: Collection> Group for AutoSize<C>
+where
+    C::Item: Group,
+{
+    type Err = AutoSizeError<<C::Item as Group>::Err>;
+
+    fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
+        let count = tokens.next()?;
+        let collection: C = tokens.collect(count)?;
+        Ok(Self { collection, count })
     }
 }

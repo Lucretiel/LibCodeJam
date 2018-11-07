@@ -3,6 +3,7 @@ use std::fmt::{self, Display, Formatter};
 
 use derive_more::*;
 
+use crate::case_index::{case_range, CaseIndex};
 use crate::data::group::{Group, UsizeTokenError};
 use crate::tokens::Tokens;
 
@@ -40,22 +41,31 @@ pub struct GlobalData<T> {
     pub data: T,
 }
 
+impl<T> GlobalData<T> {
+    pub fn for_each_case<'a, F, E>(self: &'a Self, mut f: F) -> Result<(), E>
+    where
+        F: FnMut(CaseIndex, &'a T) -> Result<(), E>,
+    {
+        case_range(self.num_cases).try_for_each(move |case| f(case, &self.data))
+    }
+}
+
 pub trait LoadGlobalData: Sized {
-    type Error: Error;
+    type Err: Error;
 
     fn from_tokens(
         tokens: &mut impl Tokens,
-    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Error>>;
+    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Err>>;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoGlobalData;
 
 impl LoadGlobalData for NoGlobalData {
-    type Error = !;
+    type Err = !;
     fn from_tokens(
         tokens: &mut impl Tokens,
-    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Error>> {
+    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Err>> {
         tokens
             .next()
             .map_err(GlobalDataError::CountError)
@@ -67,7 +77,7 @@ impl LoadGlobalData for NoGlobalData {
 }
 
 impl LoadGlobalData for () {
-    type Error = !;
+    type Err = !;
 
     fn from_tokens(tokens: &mut impl Tokens) -> Result<GlobalData<()>, GlobalDataError<!>> {
         tokens
@@ -96,11 +106,11 @@ impl<T> AsMut<T> for CountPrefix<T> {
 }
 
 impl<T: Group> LoadGlobalData for CountPrefix<T> {
-    type Error = T::Error;
+    type Err = T::Err;
 
     fn from_tokens(
         tokens: &mut impl Tokens,
-    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Error>> {
+    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Err>> {
         let num_cases = tokens.next().map_err(GlobalDataError::CountError)?;
         let data = CountPrefix(tokens.next().map_err(GlobalDataError::DataError)?);
 
@@ -124,11 +134,11 @@ impl<T> AsMut<T> for CountSuffix<T> {
 }
 
 impl<T: Group> LoadGlobalData for CountSuffix<T> {
-    type Error = T::Error;
+    type Err = T::Err;
 
     fn from_tokens(
         tokens: &mut impl Tokens,
-    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Error>> {
+    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Err>> {
         let data = CountSuffix(tokens.next().map_err(GlobalDataError::DataError)?);
         let num_cases = tokens.next().map_err(GlobalDataError::CountError)?;
 

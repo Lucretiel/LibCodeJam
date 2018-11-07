@@ -8,6 +8,7 @@ use std::str::{from_utf8, Utf8Error};
 
 use derive_more::*;
 
+use crate::data::global::{GlobalData, GlobalDataError, LoadGlobalData};
 use crate::data::group::Group;
 
 #[derive(Debug, From)]
@@ -62,14 +63,20 @@ impl<E: Error> Error for CollectionError<E> {
 pub trait Tokens: Sized {
     fn next_raw(&mut self) -> Result<&str, LoadError>;
 
-    fn next<T: Group>(&mut self) -> Result<T, T::Error> {
+    fn next<T: Group>(&mut self) -> Result<T, T::Err> {
+        T::from_tokens(self)
+    }
+
+    fn start_problem<T: LoadGlobalData>(
+        &mut self,
+    ) -> Result<GlobalData<T>, GlobalDataError<T::Err>> {
         T::from_tokens(self)
     }
 
     fn collect<T: Group, C: FromIterator<T>>(
         &mut self,
         count: usize,
-    ) -> Result<C, CollectionError<T::Error>> {
+    ) -> Result<C, CollectionError<T::Err>> {
         TokensIter::new(self)
             .take(count)
             .enumerate()
@@ -94,7 +101,7 @@ impl<'a, T: 'a + Tokens, G: Group> TokensIter<'a, T, G> {
 }
 
 impl<'a, T: Tokens, G: Group> Iterator for TokensIter<'a, T, G> {
-    type Item = Result<G, G::Error>;
+    type Item = Result<G, G::Err>;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.tokens.next())
@@ -170,12 +177,9 @@ impl<R: io::BufRead> TokensReader<R> {
     }
 }
 
-impl<R: io::BufRead> TokensReader<R> {
-    pub fn new_with_buf(reader: R, buffer: Vec<u8>) -> Self {
-        TokensReader {
-            reader,
-            token: TokenBuffer::with_buf(buffer),
-        }
+impl<R: io::Read> TokensReader<io::BufReader<R>> {
+    pub fn new_buf(reader: R) -> Self {
+        Self::new(io::BufReader::new(reader))
     }
 }
 
