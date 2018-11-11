@@ -8,3 +8,5 @@ pub mod executor;
 pub mod printer;
 pub mod solver;
 pub mod tokens;
+
+pub use ordered_float::{OrderedFloat, NotNan};
