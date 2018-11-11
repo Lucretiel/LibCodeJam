@@ -4,9 +4,9 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
-use derive_more::*;
+use derive_more::From;
 
-use crate::data::group::{Group, UsizeTokenError};
+use crate::data::{Group, UsizeTokenError};
 use crate::tokens::CollectionError;
 use crate::tokens::Tokens;
 

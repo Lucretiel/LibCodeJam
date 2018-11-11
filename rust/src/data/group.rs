@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use derive_more::*;
+
 use crate::tokens::{LoadError, Tokens};
 
 pub trait Group: Sized {
@@ -10,7 +12,7 @@ pub trait Group: Sized {
 }
 
 // TOKEN TYPES
-#[derive(Debug)]
+#[derive(Debug, From)]
 pub enum TokenError<E: Error> {
     LoadError(LoadError),
     ParseError { err: E, tok: String },
@@ -33,12 +35,6 @@ impl<E: Error> Error for TokenError<E> {
             TokenError::LoadError(err) => Some(err),
             TokenError::ParseError { err, .. } => Some(err),
         }
-    }
-}
-
-impl<E: Error> From<LoadError> for TokenError<E> {
-    fn from(err: LoadError) -> TokenError<E> {
-        TokenError::LoadError(err)
     }
 }
 
@@ -175,7 +171,7 @@ macro_rules! make_struct_field {
     ($tokens:ident) => {
         $tokens.next()
     };
-    ($tokens:ident @ $size:expr) => {
+    ($tokens:ident => $size:expr) => {
         $tokens.collect($size)
     };
 }
@@ -190,13 +186,13 @@ macro_rules! struct_group {
             $(pub $field: $type,)*
         }
 
-        impl Group for $Name {
-            type Err = StructGroupError;
+        impl $crate::data::Group for $Name {
+            type Err = $crate::data::StructGroupError;
 
             fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
                 $(
-                    let $field = make_struct_field!(tokens $(@ $size)*)
-                        .map_err(|err| StructGroupError::new(stringify!($field), err))?;
+                    let $field = make_struct_field!(tokens $(=> $size)*)
+                        .map_err(move |err| Self::Err::new(stringify!($field), err))?;
                 )*
 
                 Ok(Self {$(

@@ -6,10 +6,9 @@ use std::marker::PhantomData;
 use std::ops::Try;
 use std::str::{from_utf8, Utf8Error};
 
-use derive_more::*;
+use derive_more::From;
 
-use crate::data::global::{GlobalData, GlobalDataError, LoadGlobalData};
-use crate::data::group::Group;
+use crate::data::{GlobalData, GlobalDataError, LoadGlobalData, Group};
 
 #[derive(Debug, From)]
 pub enum LoadError {
@@ -170,16 +169,16 @@ pub struct TokensReader<R: io::BufRead> {
 
 impl<R: io::BufRead> TokensReader<R> {
     pub fn new(reader: R) -> Self {
-        TokensReader {
+        Self {
             reader,
-            token: TokenBuffer::new(),
+            token: TokenBuffer::new()
         }
     }
 }
 
-impl<R: io::Read> TokensReader<io::BufReader<R>> {
-    pub fn new_buf(reader: R) -> Self {
-        Self::new(io::BufReader::new(reader))
+impl TokensReader<io::BufReader<io::Stdin>> {
+    pub fn stdin() -> Self {
+        Self::new(io::BufReader::new(io::stdin()))
     }
 }
 
@@ -237,6 +236,6 @@ pub struct TokensFromIterator<'a, T: Iterator<Item = &'a str>> {
 
 impl<'a, T: Iterator<Item = &'a str>> Tokens for TokensFromIterator<'a, T> {
     fn next_raw(&mut self) -> Result<&str, LoadError> {
-        self.iter.next().ok_or_else(|| LoadError::OutOfTokens)
+        self.iter.next().ok_or(LoadError::OutOfTokens)
     }
 }

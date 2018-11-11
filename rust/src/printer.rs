@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::io::{self, Write};
+use std::io;
 
 use crate::case_index::CaseIndex;
 
@@ -15,17 +15,24 @@ pub trait Printer {
 macro_rules! printer_pattern {
 	($($printer:ident : $pattern:expr ;)+) => ($(
         #[derive(Debug)]
-        pub struct $printer<W: Write>(pub io::BufWriter<W>);
+        pub struct $printer<W: std::io::Write>(pub std::io::BufWriter<W>);
 
-        impl<W: Write> $printer<W> {
+        impl<W: std::io::Write> $printer<W> {
             pub fn new(writer: W) -> Self {
-                $printer(io::BufWriter::new(writer))
+                $printer(std::io::BufWriter::new(writer))
             }
         }
 
-        impl<W: Write> Printer for $printer<W> {
+        impl $printer<std::io::Stdout> {
+            pub fn stdout() -> Self {
+                Self::new(io::stdout())
+            }
+        }
+
+        impl<W: std::io::Write> Printer for $printer<W> {
             fn print_solution(&mut self, case: CaseIndex, solution: impl Display) -> io::Result<()> {
-                write!(self.0, $pattern, case=case, solution=solution)?;
+                use std::io::Write;
+                writeln!(self.0, $pattern, case=case, solution=solution)?;
                 self.0.flush()
             }
         }
@@ -33,6 +40,6 @@ macro_rules! printer_pattern {
 }
 
 printer_pattern! {
-    StandardPrinter: "{case}: {solution}\n";
-    NewlinePrinter: "{case}:\n{solution}\n";
+    StandardPrinter: "{case}: {solution}";
+    NewlinePrinter: "{case}:\n{solution}";
 }

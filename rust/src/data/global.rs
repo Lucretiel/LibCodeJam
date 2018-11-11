@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use derive_more::*;
 
 use crate::case_index::{case_range, CaseIndex};
-use crate::data::group::{Group, UsizeTokenError};
+use crate::data::{Group, UsizeTokenError};
 use crate::tokens::Tokens;
 
 #[derive(Debug)]
@@ -91,7 +91,7 @@ impl LoadGlobalData for () {
 }
 
 #[derive(Debug, Clone, Copy, From, Deref, DerefMut, Default)]
-pub struct CountPrefix<T>(T);
+pub struct CountPrefix<T>(pub T);
 
 impl<T> AsRef<T> for CountPrefix<T> {
     fn as_ref(&self) -> &T {
@@ -119,7 +119,7 @@ impl<T: Group> LoadGlobalData for CountPrefix<T> {
 }
 
 #[derive(Debug, Clone, Copy, From, Deref, DerefMut, Default)]
-pub struct CountSuffix<T>(T);
+pub struct CountSuffix<T>(pub T);
 
 impl<T> AsRef<T> for CountSuffix<T> {
     fn as_ref(&self) -> &T {

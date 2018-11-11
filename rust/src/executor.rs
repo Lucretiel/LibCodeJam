@@ -12,9 +12,7 @@ use crate::case_index::CaseIndex;
 use crate::printer::Printer;
 use crate::solver::Solver;
 use crate::tokens::Tokens;
-
-use crate::data::global::{GlobalDataError, LoadGlobalData};
-use crate::data::group::Group;
+use crate::data::{GlobalDataError, LoadGlobalData, Group};
 
 #[derive(Debug)]
 pub enum CaseErrorKind<E: Error> {
@@ -108,32 +106,19 @@ impl<E1: Error, E2: Error> Error for ExecutionError<E1, E2> {
     }
 }
 
-pub trait Executor {
-    fn execute<T: Tokens + Send, P: Printer + Send, S: Solver + Sync>(
-        tokens: T,
-        printer: P,
-        solver: S,
-    ) -> Result<
-        (),
-        ExecutionError<<S::GlobalData as LoadGlobalData>::Err, <S::CaseData as Group>::Err>,
-    >
-    where
-        S::CaseData: Group + Send,
-        S::GlobalData: LoadGlobalData + Sync,
-        S::Solution: Display + Send,
-        <S::CaseData as Group>::Err: Send,
-        <S::GlobalData as LoadGlobalData>::Err: Send;
+type SolverError<S> = ExecutionError<<<S as Solver>::GlobalData as LoadGlobalData>::Err, <<S as Solver>::CaseData as Group>::Err>;
 
-    fn run<T: Tokens + Send, P: Printer + Send, S: Solver + Sync>(tokens: T, printer: P, solver: S)
+pub trait Executor<T: Tokens, P: Printer, S: Solver>
     where
-        S::CaseData: Group + Send,
-        S::GlobalData: LoadGlobalData + Sync,
-        S::Solution: Display + Send,
-        <S::CaseData as Group>::Err: Send,
-        <S::GlobalData as LoadGlobalData>::Err: Send,
-    {
+        S::GlobalData: LoadGlobalData,
+        S::CaseData: Group,
+        S::Solution: Display,
+{
+    fn execute(tokens: T, printer: P, solver: S) -> Result<(), SolverError<S>>;
+
+    fn run(tokens: T, printer: P, solver: S) {
         Self::execute(tokens, printer, solver).unwrap_or_else(|err| {
-            eprintln!("Error solving code jam: {}", err);
+            eprintln!("{}", err);
             exit(1);
         })
     }
@@ -141,22 +126,13 @@ pub trait Executor {
 
 pub struct SequentialExecutor;
 
-impl Executor for SequentialExecutor {
-    fn execute<T: Tokens + Send, P: Printer + Send, S: Solver + Sync>(
-        mut tokens: T,
-        mut printer: P,
-        solver: S,
-    ) -> Result<
-        (),
-        ExecutionError<<S::GlobalData as LoadGlobalData>::Err, <S::CaseData as Group>::Err>,
-    >
+impl<T: Tokens, P: Printer, S: Solver> Executor<T, P, S> for SequentialExecutor
     where
-        S::CaseData: Group + Send,
-        S::GlobalData: LoadGlobalData + Sync,
-        S::Solution: Display + Send,
-        <S::CaseData as Group>::Err: Send,
-        <S::GlobalData as LoadGlobalData>::Err: Send,
-    {
+        S::GlobalData: LoadGlobalData,
+        S::CaseData: Group,
+        S::Solution: Display,
+{
+    fn execute(mut tokens: T, mut printer: P, solver: S) -> Result<(), SolverError<S>> {
         tokens
             .start_problem()?
             .for_each_case(move |case, global_data| {
@@ -173,22 +149,14 @@ impl Executor for SequentialExecutor {
 
 pub struct ThreadExecutor;
 
-impl Executor for ThreadExecutor {
-    fn execute<T: Tokens + Send, P: Printer + Send, S: Solver + Sync>(
-        mut tokens: T,
-        mut printer: P,
-        solver: S,
-    ) -> Result<
-        (),
-        ExecutionError<<S::GlobalData as LoadGlobalData>::Err, <S::CaseData as Group>::Err>,
-    >
+impl<T: Tokens + Send, P: Printer + Send, S: Solver + Sync> Executor<T, P, S> for ThreadExecutor
     where
-        S::CaseData: Group + Send,
         S::GlobalData: LoadGlobalData + Sync,
+        S::CaseData: Group + Send,
         S::Solution: Display + Send,
-        <S::CaseData as Group>::Err: Send,
-        <S::GlobalData as LoadGlobalData>::Err: Send,
-    {
+        SolverError<S>: Send,
+{
+    fn execute(mut tokens: T, mut printer: P, solver: S, ) -> Result<(), SolverError<S>> {
         let global_data = tokens.start_problem()?;
         let solver = &solver;
 
