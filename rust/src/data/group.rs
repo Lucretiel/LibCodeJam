@@ -1,7 +1,11 @@
 use std::error::Error;
+use std::str::FromStr;
 use std::fmt::{self, Display, Formatter};
 
 use derive_more::*;
+
+use ordered_float::{NotNan, OrderedFloat, ParseNotNanError};
+use num_traits::Float;
 
 use crate::tokens::{LoadError, Tokens};
 
@@ -38,14 +42,28 @@ impl<E: Error> Error for TokenError<E> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Deref, DerefMut, From, FromStr)]
+pub struct ViaFromStr<T: FromStr>(pub T);
+
+impl<T: FromStr> Group for ViaFromStr<T>
+    where T::Err: Error + 'static
+{
+    type Err = TokenError<T::Err>;
+
+    fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
+        let raw = tokens.next_raw()?;
+        raw.parse().map_err(move |err| TokenError::ParseError { err, tok: raw.into()})
+    }
+}
+
+#[macro_export]
 macro_rules! token_via_fromstr {
-    ( $( $type:ty )+ ) => {$(
+    ( $( $type:ident )+ ) => {$(
         impl Group for $type {
             type Err = TokenError<<$type as std::str::FromStr>::Err>;
 
             fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
-                let raw = tokens.next_raw()?;
-                raw.parse().map_err(move |err| TokenError::ParseError{err, tok: raw.into()})
+                ViaFromStr::from_tokens(tokens).map(|value| value.0)
             }
         }
     )*}
@@ -57,6 +75,25 @@ token_via_fromstr!{
     f32 f64
     char String
 }
+
+impl<T: Group + Float> Group for OrderedFloat<T> {
+    type Err = T::Err;
+
+    fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
+        T::from_tokens(tokens).map(OrderedFloat)
+    }
+}
+
+impl<T: Group + Float> Group for NotNan<T> {
+    type Err = ParseNotNanError<T::Err>;
+
+    fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
+        T::from_tokens(tokens)
+            .map_err(ParseNotNanError::ParseFloatError)
+            .and_then(|value| NotNan::new(value).map_err(|_| ParseNotNanError::IsNaN))
+    }
+}
+
 
 pub type UsizeTokenError = <usize as Group>::Err;
 
@@ -167,7 +204,7 @@ impl Error for StructGroupError {
 }
 
 #[macro_export]
-macro_rules! make_struct_field {
+macro_rules! load_field {
     ($tokens:ident) => {
         $tokens.next()
     };
@@ -177,11 +214,13 @@ macro_rules! make_struct_field {
 }
 
 #[macro_export]
-macro_rules! struct_group {
-    (struct $Name:ident {
+macro_rules! struct_groups {
+    ($(
+        $(#[derive($($derive:ident),+)])*
+        struct $Name:ident {
         $($field:ident : $type:ty $(=> $size:expr )* ,)*
-    }) => (
-        #[derive(Debug)]
+    })+) => ($(
+        #[derive(Debug, $($($derive,)*)*)]
         pub struct $Name {
             $(pub $field: $type,)*
         }
@@ -191,7 +230,7 @@ macro_rules! struct_group {
 
             fn from_tokens(tokens: &mut impl Tokens) -> Result<Self, Self::Err> {
                 $(
-                    let $field = make_struct_field!(tokens $(=> $size)*)
+                    let $field = load_field!(tokens $(=> $size)*)
                         .map_err(move |err| Self::Err::new(stringify!($field), err))?;
                 )*
 
@@ -200,5 +239,5 @@ macro_rules! struct_group {
                 )*})
             }
         }
-    )
+    )+)
 }
