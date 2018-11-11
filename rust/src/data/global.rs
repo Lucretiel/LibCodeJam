@@ -42,11 +42,8 @@ pub struct GlobalData<T> {
 }
 
 impl<T> GlobalData<T> {
-    pub fn for_each_case<'a, F, E>(self: &'a Self, mut f: F) -> Result<(), E>
-    where
-        F: FnMut(CaseIndex, &'a T) -> Result<(), E>,
-    {
-        case_range(self.num_cases).try_for_each(move |case| f(case, &self.data))
+    pub fn cases<'a>(&'a self) -> impl Iterator<Item=(CaseIndex, &'a T)> {
+        case_range(self.num_cases).map(move |case| (case, &self.data))
     }
 }
 
@@ -63,9 +60,10 @@ pub struct NoGlobalData;
 
 impl LoadGlobalData for NoGlobalData {
     type Err = !;
+
     fn from_tokens(
         tokens: &mut impl Tokens,
-    ) -> Result<GlobalData<Self>, GlobalDataError<Self::Err>> {
+    ) -> Result<GlobalData<Self>, GlobalDataError<!>> {
         tokens
             .next()
             .map_err(GlobalDataError::CountError)

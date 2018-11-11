@@ -4,14 +4,18 @@ use std::fmt::{self, Display, Formatter};
 pub struct CaseIndex(usize);
 
 impl CaseIndex {
-    pub fn next(&self) -> CaseIndex {
+    pub fn next(self) -> CaseIndex {
         CaseIndex(self.0 + 1)
+    }
+
+    pub fn start() -> CaseIndex {
+        CaseIndex(1)
     }
 }
 
 impl Default for CaseIndex {
     fn default() -> CaseIndex {
-        CaseIndex(1)
+        CaseIndex::start()
     }
 }
 

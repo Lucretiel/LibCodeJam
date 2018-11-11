@@ -7,6 +7,8 @@ use libcodejam::printer::*;
 use libcodejam::solver::*;
 use libcodejam::tokens::*;
 
+use std::collections::HashMap;
+
 struct_group!{
     struct Data {
     num_columns: usize,

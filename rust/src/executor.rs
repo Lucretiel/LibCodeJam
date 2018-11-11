@@ -135,7 +135,8 @@ impl<T: Tokens, P: Printer, S: Solver> Executor<T, P, S> for SequentialExecutor
     fn execute(mut tokens: T, mut printer: P, solver: S) -> Result<(), SolverError<S>> {
         tokens
             .start_problem()?
-            .for_each_case(move |case, global_data| {
+            .cases()
+            .try_for_each(move |(case, global_data)| {
                 let case_data = tokens
                     .next()
                     .map_err(|err| ExecutionError::load_error(case, err))?;
@@ -157,10 +158,10 @@ impl<T: Tokens + Send, P: Printer + Send, S: Solver + Sync> Executor<T, P, S> fo
         SolverError<S>: Send,
 {
     fn execute(mut tokens: T, mut printer: P, solver: S, ) -> Result<(), SolverError<S>> {
-        let global_data = tokens.start_problem()?;
+        let global_data = &tokens.start_problem()?;
         let solver = &solver;
 
-        crossbeam::scope(|scope| {
+        crossbeam::scope(move |scope| {
             let (sender, receiver) = channel::bounded(global_data.num_cases);
 
             // Spawn a print thread which will do all the printing, bailing on an error.
@@ -188,7 +189,7 @@ impl<T: Tokens + Send, P: Printer + Send, S: Solver + Sync> Executor<T, P, S> fo
             });
 
             // Start spawning test cases
-            global_data.for_each_case(move |case, global_data| {
+            global_data.cases().try_for_each(move |(case, global_data)| {
                 // Can't use ? here, because the chain of ? confuses the type inferrer.
                 let case_data = match tokens.next() {
                     Err(err) => return Err(CaseError::load_error(case, err)),
