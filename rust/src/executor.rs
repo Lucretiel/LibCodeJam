@@ -172,13 +172,13 @@ impl<T: Tokens + Send, P: Printer + Send, S: Solver + Sync> Executor<T, P, S> fo
                 for (case, solution) in receiver {
                     if case == next_case {
                         next_case = printer
-                            .print_advance(case, solution)
-                            .map_err(move |err| (case, err))?;
+                            .print_advance(next_case, solution)
+                            .map_err(move |err| (next_case, err))?;
 
                         while let Some(solution) = solutions.remove(&next_case) {
                             next_case = printer
                                 .print_advance(next_case, solution)
-                                .map_err(move |err| (case, err))?;
+                                .map_err(move |err| (next_case, err))?;
                         }
                     } else {
                         solutions.insert(case, solution);
@@ -209,6 +209,8 @@ impl<T: Tokens + Send, P: Printer + Send, S: Solver + Sync> Executor<T, P, S> fo
                 .join()
                 .expect("Print thread panicked!")
                 .map_err(|(case, err)| CaseError::print_error(case, err))?;
+
+            // TODO: check other threads for panics
             Ok(())
         })
     }
