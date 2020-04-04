@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 #![allow(bare_trait_objects)]
 
-use std::cmp::Ordering;
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
