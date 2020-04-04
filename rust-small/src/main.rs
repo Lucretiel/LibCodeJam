@@ -41,7 +41,10 @@ fn solve<T: Tokens, W: io::Write>(
     tokens: &mut T,
     ostr: &mut W,
 ) -> Result<(), Box<Error>> {
-    panic!()
+    let solution = "IMPOSSIBLE";
+
+    writeln!(ostr, "Case #{}: {}", case, solution)?;
+    Ok(())
 }
 
 /// Everything below this line is a pre-written scaffold based on my own
@@ -51,7 +54,7 @@ fn solve<T: Tokens, W: io::Write>(
 /// of cases, then call a function for each case, printing the results). Most
 /// of this scaffold is dedicated to a composable, type-safe system for reading
 /// tokens or collections of tokens, followed by a buffered input reader
-/// designed for minimal data copying & allocating as much as possible.
+/// designed for minimal data copying & allocating
 
 fn main() {
     let stdin = io::stdin();
@@ -68,6 +71,313 @@ fn main() {
         solve(case + 1, &global_data, &mut tokens, &mut stdout_lock).unwrap_or_else(|err| {
             panic!("Error solving Case #{}: {}", case + 1, err);
         })
+    }
+}
+
+/// A group is single token or group of tokens that knows how to independently
+/// read itself from a token stream. For example, a single number, a set of
+/// coordinates, or a length-prefixed list of Group.
+trait Group: Sized {
+    type Err: Error + 'static;
+
+    fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err>;
+}
+
+/// Create a Group implementation for any type implementing FromStr. We can't
+/// do a blanket implementation for type coherence reasons.
+macro_rules! token {
+    ( $($type:ty)* ) => {$(
+        impl Group for $type {
+            type Err = TokenError<<$type as std::str::FromStr>::Err>;
+
+            #[inline(always)]
+            fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
+                tokens.next_token()
+            }
+        }
+    )*}
+}
+
+token! {
+    u8 u16 u32 u64
+    i8 i16 i32 i64
+    isize usize
+    f32 f64
+    char String
+}
+
+// TODO: copy in OrderedFloat, NotNaN, etc
+
+impl Group for () {
+    type Err = Never;
+
+    #[inline(always)]
+    fn from_tokens<T: Tokens>(_tokens: &mut T) -> Result<Self, Self::Err> {
+        Ok(())
+    }
+}
+
+macro_rules! count {
+    () => (0);
+    ($thing:ident $(, $rest:ident)*) => (1 + count!($($rest),*))
+}
+
+macro_rules! tuple_group {
+    () => ();
+    ($head:ident $(, $tail:ident)*) => {
+        tuple_group!{$($tail),*}
+
+        #[allow(non_snake_case)]
+        impl< $head : Group + Debug , $( $tail : Group + Debug, )* > Group for ($head, $($tail,)*)
+            where $head::Err: Error + 'static,
+            $( $tail::Err: Error + 'static, )*
+        {
+            type Err = TupleGroupError;
+
+            #[inline(always)]
+            fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
+                let $head = tokens.next().map_err(|err| TupleGroupError::new(count!($($tail),*), err))?;
+                let ($($tail,)*) = tokens.next()?;
+
+                Ok(($head , $($tail, )*))
+            }
+        }
+    }
+}
+
+tuple_group! {A, B, C, D, E, F, G, H, I, J, K, L}
+
+/// A length prefixed list of something. Because many collections support
+/// FromIterable with more than 1 type, we have to specify what type is being
+/// collected as the second generic parameter.
+#[derive(Debug, Clone)]
+struct LengthPrefixed<C, G> {
+    collection: C,
+    phantom: PhantomData<G>,
+}
+
+impl<G, C> LengthPrefixed<C, G> {
+    #[allow(dead_code)]
+    fn into_inner(self) -> C {
+        self.collection
+    }
+}
+
+impl<G: Group, C: FromIterator<G>> Group for LengthPrefixed<C, G> {
+    type Err = LengthPrefixedError<G::Err>;
+
+    #[inline(always)]
+    fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
+        let len = tokens.next()?;
+        Ok(LengthPrefixed {
+            collection: tokens.collect(len)?,
+            phantom: PhantomData,
+        })
+    }
+}
+
+impl<G, C: IntoIterator> IntoIterator for LengthPrefixed<C, G> {
+    type Item = C::Item;
+    type IntoIter = C::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.collection.into_iter()
+    }
+}
+
+impl<'a, G, C> IntoIterator for &'a LengthPrefixed<C, G>
+where
+    &'a C: IntoIterator,
+{
+    type Item = <&'a C as IntoIterator>::Item;
+    type IntoIter = <&'a C as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.collection.into_iter()
+    }
+}
+
+impl<C, G> Deref for LengthPrefixed<C, G> {
+    type Target = C;
+
+    fn deref(&self) -> &Self::Target {
+        &self.collection
+    }
+}
+
+impl<C, G> DerefMut for LengthPrefixed<C, G> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.collection
+    }
+}
+
+trait Tokens: Sized {
+    /// Load the next whitespace separated token as a str
+    fn next_raw(&mut self) -> Result<&str, RawTokenError>;
+
+    /// Shortcut method for loading FromStr types
+    fn next_token<T: FromStr>(&mut self) -> Result<T, TokenError<T::Err>>
+    where
+        T::Err: Error + 'static,
+    {
+        let raw = self.next_raw()?;
+        raw.parse().map_err(|err| TokenError::Parse {
+            err,
+            tok: raw.into(),
+        })
+    }
+
+    /// Load any Group type
+    #[inline(always)]
+    fn next<T: Group>(&mut self) -> Result<T, T::Err> {
+        T::from_tokens(self)
+    }
+
+    /// Load N Groups into a collection
+    #[inline(always)]
+    fn collect<T: Group, C: FromIterator<T>>(
+        &mut self,
+        count: usize,
+    ) -> Result<C, CollectionError<T::Err>> {
+        TokensIter::new(self)
+            .take(count)
+            .enumerate()
+            .map(|(index, result)| result.map_err(|error| CollectionError { index, error }))
+            .collect()
+    }
+}
+
+#[derive(Debug)]
+struct TokensIter<'a, T: Tokens + 'a, G: Group> {
+    tokens: &'a mut T,
+    phantom: PhantomData<G>,
+}
+
+impl<'a, T: Tokens, G: Group> TokensIter<'a, T, G> {
+    fn new(tokens: &'a mut T) -> Self {
+        Self {
+            tokens,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Tokens, G: Group> Iterator for TokensIter<'a, T, G> {
+    type Item = Result<G, G::Err>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.tokens.next())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (std::usize::MAX, None)
+    }
+}
+
+impl<'a, T: Tokens, G: Group> ExactSizeIterator for TokensIter<'a, T, G> {
+    // Technically a lie, but we rely on .take to constrain it.
+    fn len(&self) -> usize {
+        ::std::usize::MAX
+    }
+}
+
+// Unfortunately, it's not possible to implement `Tokens` directly on a BufRead,
+// because we can't control the size of its buffer. We therefore have this
+// TokenBuffer / TokensReader construct to wrap a bufread (like stdin)
+
+#[derive(Debug)]
+struct TokenBuffer(Vec<u8>);
+
+impl TokenBuffer {
+    fn new() -> Self {
+        Self::with_buf(Vec::with_capacity(1024))
+    }
+
+    fn with_buf(buf: Vec<u8>) -> Self {
+        TokenBuffer(buf)
+    }
+
+    // Start a new token
+    fn lock(&mut self) -> TokenBufferLock {
+        self.0.clear();
+        TokenBufferLock(&mut self.0)
+    }
+}
+
+#[derive(Debug)]
+struct TokenBufferLock<'a>(&'a mut Vec<u8>);
+
+impl<'a> TokenBufferLock<'a> {
+    // Add data to this token
+    fn extend(&mut self, chunk: &[u8]) {
+        self.0.extend_from_slice(chunk);
+    }
+
+    // Complete the token: try to parse the buffer into a string and return
+    // a refernce to it
+    fn complete(self) -> Result<&'a str, RawTokenError> {
+        from_utf8(self.0).map_err(RawTokenError::Utf8Error)
+    }
+}
+
+pub struct TokensReader<R: io::BufRead> {
+    reader: R,
+    token: TokenBuffer,
+}
+
+impl<R: io::BufRead> TokensReader<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            token: TokenBuffer::new(),
+        }
+    }
+}
+
+impl<R: io::BufRead> Tokens for TokensReader<R> {
+    fn next_raw(&mut self) -> Result<&str, RawTokenError> {
+        use std::io::ErrorKind::Interrupted;
+
+        // TODO: clean this up when NLL is ready
+        // Clear leading whitespace
+        let final_leading_ws = loop {
+            let leading_ws = match self.reader.fill_buf() {
+                Err(ref err) if err.kind() == Interrupted => continue,
+                Err(err) => return Err(RawTokenError::Io(err)),
+                Ok(buf) if buf.is_empty() => return Err(RawTokenError::OutOfTokens),
+                Ok(buf) => match buf.iter().position(|byte| !byte.is_ascii_whitespace()) {
+                    Some(i) => break i,
+                    None => buf.len(),
+                },
+            };
+            self.reader.consume(leading_ws);
+        };
+        self.reader.consume(final_leading_ws);
+
+        // If we reach this point, there is definitely a non-empty token ready to be read.
+        let mut token_buf = self.token.lock();
+
+        let final_amt = loop {
+            let amt = match self.reader.fill_buf() {
+                Err(ref err) if err.kind() == Interrupted => continue,
+                Err(err) => return Err(RawTokenError::Io(err)),
+                Ok(buf) if buf.is_empty() => return token_buf.complete(),
+                Ok(buf) => match buf.iter().position(u8::is_ascii_whitespace) {
+                    Some(i) => {
+                        token_buf.extend(&buf[..i]);
+                        break i + 1;
+                    }
+                    None => {
+                        token_buf.extend(buf);
+                        buf.len()
+                    }
+                },
+            };
+            self.reader.consume(amt);
+        };
+        self.reader.consume(final_amt);
+
+        token_buf.complete()
     }
 }
 
@@ -240,40 +550,6 @@ impl<E> From<CollectionError<E>> for LengthPrefixedError<E> {
     }
 }
 
-/// A group is single token or group of tokens that knows how to independently
-/// read itself from a token stream. For example, a single number, a set of
-/// coordinates, or a length-prefixed list of Group.
-trait Group: Sized {
-    type Err: Error + 'static;
-
-    fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err>;
-}
-
-/// Create a Group implementation for any type implementing FromStr. We can't
-/// do a blanket implementation for type coherence reasons.
-macro_rules! token {
-    ( $($type:ty)* ) => {$(
-        impl Group for $type {
-            type Err = TokenError<<$type as std::str::FromStr>::Err>;
-
-            #[inline(always)]
-            fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
-                tokens.next_token()
-            }
-        }
-    )*}
-}
-
-token! {
-    u8 u16 u32 u64
-    i8 i16 i32 i64
-    isize usize
-    f32 f64
-    char String
-}
-
-// TODO: copy in OrderedFloat, NotNaN, etc
-
 #[derive(Debug, Copy, Clone)]
 enum Never {}
 
@@ -286,281 +562,5 @@ impl Display for Never {
 impl Error for Never {
     fn description(&self) -> &str {
         unreachable!()
-    }
-}
-
-impl Group for () {
-    type Err = Never;
-
-    #[inline(always)]
-    fn from_tokens<T: Tokens>(_tokens: &mut T) -> Result<Self, Self::Err> {
-        Ok(())
-    }
-}
-
-macro_rules! count {
-    () => (0);
-    ($thing:ident $(, $rest:ident)*) => (1 + count!($($rest),*))
-}
-
-macro_rules! tuple_group {
-    () => ();
-    ($head:ident $(, $tail:ident)*) => {
-        tuple_group!{$($tail),*}
-
-        #[allow(non_snake_case)]
-        impl< $head : Group + Debug , $( $tail : Group + Debug, )* > Group for ($head, $($tail,)*)
-            where $head::Err: Error + 'static,
-            $( $tail::Err: Error + 'static, )*
-        {
-            type Err = TupleGroupError;
-
-            #[inline(always)]
-            fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
-                let $head = tokens.next().map_err(|err| TupleGroupError::new(count!($($tail),*), err))?;
-                let ($($tail,)*) = tokens.next()?;
-
-                Ok(($head , $($tail, )*))
-            }
-        }
-    }
-}
-
-tuple_group! {A, B, C, D, E, F, G, H, I, J, K, L}
-
-/// A length prefixed list of something. Because many collections support
-/// FromIterable with more than 1 type, we have to specify what type is being
-/// collected as the second generic parameter.
-#[derive(Debug, Clone)]
-struct LengthPrefixed<C, G> {
-    collection: C,
-    phantom: PhantomData<G>,
-}
-
-impl<G, C> LengthPrefixed<C, G> {
-    #[allow(dead_code)]
-    fn into_inner(self) -> C {
-        self.collection
-    }
-}
-
-impl<G: Group, C: FromIterator<G>> Group for LengthPrefixed<C, G> {
-    type Err = LengthPrefixedError<G::Err>;
-
-    #[inline(always)]
-    fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
-        let len = tokens.next()?;
-        let collection = tokens.collect(len)?;
-        Ok(LengthPrefixed {
-            collection,
-            phantom: PhantomData,
-        })
-    }
-}
-
-impl<G, C: IntoIterator> IntoIterator for LengthPrefixed<C, G> {
-    type Item = C::Item;
-    type IntoIter = C::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.collection.into_iter()
-    }
-}
-
-impl<'a, G, C> IntoIterator for &'a LengthPrefixed<C, G>
-where
-    &'a C: IntoIterator,
-{
-    type Item = <&'a C as IntoIterator>::Item;
-    type IntoIter = <&'a C as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.collection.into_iter()
-    }
-}
-
-impl<C, G> Deref for LengthPrefixed<C, G> {
-    type Target = C;
-
-    fn deref(&self) -> &Self::Target {
-        &self.collection
-    }
-}
-
-impl<C, G> DerefMut for LengthPrefixed<C, G> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.collection
-    }
-}
-
-trait Tokens: Sized {
-    fn next_raw(&mut self) -> Result<&str, RawTokenError>;
-
-    // Shortcut method for loading FromStr types
-    fn next_token<T: FromStr>(&mut self) -> Result<T, TokenError<T::Err>>
-    where
-        T::Err: Error + 'static,
-    {
-        let raw = self.next_raw()?;
-        raw.parse().map_err(|err| TokenError::Parse {
-            err,
-            tok: raw.into(),
-        })
-    }
-
-    #[inline(always)]
-    fn next<T: Group>(&mut self) -> Result<T, T::Err> {
-        T::from_tokens(self)
-    }
-
-    #[inline(always)]
-    fn collect<T: Group, C: FromIterator<T>>(
-        &mut self,
-        count: usize,
-    ) -> Result<C, CollectionError<T::Err>> {
-        TokensIter::new(self)
-            .take(count)
-            .enumerate()
-            .map(|(index, result)| result.map_err(|error| CollectionError { index, error }))
-            .collect()
-    }
-}
-
-#[derive(Debug)]
-struct TokensIter<'a, T: Tokens + 'a, G: Group> {
-    tokens: &'a mut T,
-    phantom: PhantomData<G>,
-}
-
-impl<'a, T: Tokens, G: Group> TokensIter<'a, T, G> {
-    fn new(tokens: &'a mut T) -> Self {
-        Self {
-            tokens,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a, T: Tokens, G: Group> Iterator for TokensIter<'a, T, G> {
-    type Item = Result<G, G::Err>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.tokens.next())
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (std::usize::MAX, None)
-    }
-}
-
-impl<'a, T: Tokens, G: Group> ExactSizeIterator for TokensIter<'a, T, G> {
-    // Technically a lie, but we rely on .take to constrain it.
-    fn len(&self) -> usize {
-        ::std::usize::MAX
-    }
-}
-
-// Unfortunately, it's not possible to implement `Tokens` directly on a BufRead,
-// because we can't control the size of its buffer. We therefore have this
-// TokenBuffer / TokensReader construct to wrap a bufread (like stdin)
-
-#[derive(Debug)]
-struct TokenBuffer(Vec<u8>);
-
-impl TokenBuffer {
-    fn new() -> Self {
-        Self::with_buf(Vec::with_capacity(1024))
-    }
-
-    fn with_buf(buf: Vec<u8>) -> Self {
-        TokenBuffer(buf)
-    }
-
-    // Start a new token
-    fn lock(&mut self) -> TokenBufferLock {
-        self.0.clear();
-        TokenBufferLock(&mut self.0)
-    }
-}
-
-#[derive(Debug)]
-struct TokenBufferLock<'a>(&'a mut Vec<u8>);
-
-impl<'a> TokenBufferLock<'a> {
-    // Add data to this token
-    fn extend(&mut self, chunk: &[u8]) {
-        self.0.extend_from_slice(chunk);
-    }
-
-    // Complete the token: try to parse the buffer into a string and return
-    // a refernce to it
-    fn complete(self) -> Result<&'a str, RawTokenError> {
-        from_utf8(self.0).map_err(RawTokenError::Utf8Error)
-    }
-}
-
-pub struct TokensReader<R: io::BufRead> {
-    reader: R,
-    token: TokenBuffer,
-}
-
-impl<R: io::BufRead> TokensReader<R> {
-    pub fn new(reader: R) -> Self {
-        Self {
-            reader,
-            token: TokenBuffer::new(),
-        }
-    }
-}
-
-impl<R: io::BufRead> Tokens for TokensReader<R> {
-    fn next_raw(&mut self) -> Result<&str, RawTokenError> {
-        use std::io::ErrorKind::Interrupted;
-
-        // TODO: clean this up when NLL is ready
-        // HAHAHA JUST KIDDING GOOGLE CODE JAM USES RUST 1.24
-        // which came out in
-        // ...
-        // ...
-        // february 2018
-        // Clear leading whitespace
-        let final_leading_ws = loop {
-            let leading_ws = match self.reader.fill_buf() {
-                Err(ref err) if err.kind() == Interrupted => continue,
-                Err(err) => return Err(RawTokenError::Io(err)),
-                Ok(buf) if buf.is_empty() => return Err(RawTokenError::OutOfTokens),
-                Ok(buf) => match buf.iter().position(|byte| !byte.is_ascii_whitespace()) {
-                    Some(i) => break i,
-                    None => buf.len(),
-                },
-            };
-            self.reader.consume(leading_ws);
-        };
-        self.reader.consume(final_leading_ws);
-
-        // If we reach this point, there is definitely a non-empty token ready to be read.
-        let mut token_buf = self.token.lock();
-
-        let final_amt = loop {
-            let amt = match self.reader.fill_buf() {
-                Err(ref err) if err.kind() == Interrupted => continue,
-                Err(err) => return Err(RawTokenError::Io(err)),
-                Ok(buf) if buf.is_empty() => return token_buf.complete(),
-                Ok(buf) => match buf.iter().position(u8::is_ascii_whitespace) {
-                    Some(i) => {
-                        token_buf.extend(&buf[..i]);
-                        break i + 1;
-                    }
-                    None => {
-                        token_buf.extend(buf);
-                        buf.len()
-                    }
-                },
-            };
-            self.reader.consume(amt);
-        };
-        self.reader.consume(final_amt);
-
-        token_buf.complete()
     }
 }
