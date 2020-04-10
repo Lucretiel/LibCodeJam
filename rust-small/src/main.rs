@@ -2,20 +2,23 @@
 #![allow(unused_imports)]
 #![allow(bare_trait_objects)]
 
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::error::Error;
-use std::fmt::{self, Debug, Display};
-use std::hash::{Hash, Hasher};
-use std::io;
-use std::iter::{repeat, FromIterator};
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{
-    Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
-    SubAssign,
+use std::{
+    cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
+    collections::{BinaryHeap, HashMap, HashSet},
+    error::Error,
+    fmt::{self, Display},
+    hash::{Hash, Hasher},
+    io,
+    iter::{repeat, FromIterator},
+    marker::PhantomData,
+    mem,
+    ops::{
+        Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+        SubAssign,
+    },
+    process::exit,
+    str::{from_utf8, FromStr, Utf8Error},
 };
-use std::str::{from_utf8, FromStr, Utf8Error};
 
 /// Generic function to solve a single test case
 ///
@@ -37,12 +40,12 @@ use std::str::{from_utf8, FromStr, Utf8Error};
 #[inline(always)]
 fn solve<T: Tokens, W: io::Write>(
     case: usize,
-    global_data: &(usize, usize),
+    global_data: &(u32, u32),
     tokens: &mut T,
     ostr: &mut W,
 ) -> Result<(), Box<Error>> {
-    let data: usize = tokens.next()?;
-    let solution = global_data.0 + global_data.1 + data;
+    let data: LengthPrefixed<Vec<u32>, u32> = tokens.next()?;
+    let solution = global_data.0 + global_data.1 + data[0];
 
     writeln!(ostr, "Case #{}: {}", case, solution)?;
     Ok(())
@@ -65,8 +68,13 @@ fn main() {
     let stdout = io::stdout();
     let mut stdout_lock = stdout.lock();
 
-    let num_cases = tokens.next().unwrap();
-    let global_data = tokens.next().unwrap();
+    let num_cases = tokens.next().unwrap_or_else(|err| {
+        panic!("Error loading number of cases: {}", err);
+    });
+
+    let global_data = tokens.next().unwrap_or_else(|err| {
+        panic!("Error loading global data: {}", err);
+    });
 
     for case in 0..num_cases {
         solve(case + 1, &global_data, &mut tokens, &mut stdout_lock).unwrap_or_else(|err| {
@@ -85,7 +93,8 @@ trait Group: Sized {
 }
 
 /// Create a Group implementation for any type implementing FromStr. We can't
-/// do a blanket implementation for type coherence reasons.
+/// do a blanket implementation for type coherence reasons. Other FromStr types
+/// can be loaded with next_token, or have Group implemented with this macro.
 macro_rules! token {
     ( $($type:ty)* ) => {$(
         impl Group for $type {
@@ -123,13 +132,15 @@ macro_rules! count {
     ($thing:ident $(, $rest:ident)*) => (1 + count!($($rest),*))
 }
 
+// Recursively implement Group for Tuples of length 1 throuhg the number of
+// provided identifiers.
 macro_rules! tuple_group {
     () => ();
     ($head:ident $(, $tail:ident)*) => {
         tuple_group!{$($tail),*}
 
         #[allow(non_snake_case)]
-        impl< $head : Group + Debug , $( $tail : Group + Debug, )* > Group for ($head, $($tail,)*)
+        impl< $head : Group , $( $tail : Group, )* > Group for ($head, $($tail,)*)
             where $head::Err: Error + 'static,
             $( $tail::Err: Error + 'static, )*
         {
@@ -137,8 +148,11 @@ macro_rules! tuple_group {
 
             #[inline(always)]
             fn from_tokens<T: Tokens>(tokens: &mut T) -> Result<Self, Self::Err> {
-                let $head = tokens.next().map_err(|err| TupleGroupError::new(count!($($tail),*), err))?;
                 let ($($tail,)*) = tokens.next()?;
+
+                // Need to load head last because the reported error index is
+                // the length of the tail
+                let $head = tokens.next().map_err(|err| TupleGroupError::new(count!($($tail),*), err))?;
 
                 Ok(($head , $($tail, )*))
             }
