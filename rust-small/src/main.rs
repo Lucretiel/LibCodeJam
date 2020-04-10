@@ -37,11 +37,12 @@ use std::str::{from_utf8, FromStr, Utf8Error};
 #[inline(always)]
 fn solve<T: Tokens, W: io::Write>(
     case: usize,
-    global_data: &usize,
+    global_data: &(usize, usize),
     tokens: &mut T,
     ostr: &mut W,
 ) -> Result<(), Box<Error>> {
-    let solution = "IMPOSSIBLE";
+    let data: usize = tokens.next()?;
+    let solution = global_data.0 + global_data.1 + data;
 
     writeln!(ostr, "Case #{}: {}", case, solution)?;
     Ok(())
