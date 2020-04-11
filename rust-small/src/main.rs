@@ -305,7 +305,11 @@ struct TokenBuffer(Vec<u8>);
 
 impl TokenBuffer {
     fn new() -> Self {
-        Self::with_buf(Vec::with_capacity(1024))
+        Self::with_capacity(1024)
+    }
+
+    fn with_capacity(capacity: usize) -> Self {
+        Self::with_buf(Vec::with_capacity(capacity))
     }
 
     fn with_buf(buf: Vec<u8>) -> Self {
@@ -335,6 +339,7 @@ impl<'a> TokenBufferLock<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct TokensReader<R: io::BufRead> {
     reader: R,
     token: TokenBuffer,
