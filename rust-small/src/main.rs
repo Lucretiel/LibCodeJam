@@ -2,71 +2,57 @@
 #![allow(unused_imports)]
 #![allow(bare_trait_objects)]
 
-use std::{
-    cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
-    collections::{BinaryHeap, HashMap, HashSet},
-    error::Error,
-    fmt::{self, Display},
-    hash::{Hash, Hasher},
-    io,
-    iter::{repeat, FromIterator},
-    marker::PhantomData,
-    mem,
-    ops::{
-        Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
-        SubAssign,
-    },
-    process::exit,
-    str::{from_utf8, FromStr, Utf8Error},
+// This is a pre-written single-file scaffold based on my own LibCodeJam
+// (https://github.com/Lucretiel/LibCodeJam). It's designed to provide a
+// strongly- and implicitly-typed interface for reading data in the code jam
+// style, as well as provide a typical main loop (read number of cases, then
+// call a function for each case, printing the results). Most of this scaffold
+// is dedicated to a composable, type-safe system for reading tokens or
+// collections of tokens, followed by a buffered input reader designed for
+// minimal data copying & allocating.
+//
+// The actual solution function is at the bottom of this file.
+
+// This set of imports should comprehensively include everything we might need
+// to solve a typical code jam problem. Stuff added here should be added
+// permanently.
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::error::Error;
+use std::fmt::{self, Display};
+use std::hash::{Hash, Hasher};
+use std::io::{self, Write};
+use std::iter::{repeat, FromIterator};
+use std::marker::PhantomData;
+use std::mem;
+use std::ops::{
+    Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+    SubAssign,
 };
+use std::process::exit;
+use std::rc::{Rc, Weak};
+use std::str::{from_utf8, FromStr, Utf8Error};
 
-/// Generic function to solve a single test case
-///
-/// case: always a usize, it is the 1-indexed case number
-/// global_data: any Group-implementing function (including ()); this data is
-/// loaded once (after num_cases) and passed by reference to each tast case
-/// tokens: a Tokens struct, for reading tokens and Groups from stdin
-/// ostr: a reference to stdout. This is line-buffered; it flushed on every
-/// newline
-///
-/// A Group is a token or collection of tokens that can be loaded from an input
-/// stream. Specifically, it is:
-///
-/// - An int or float
-/// - a char or String
-/// - any tuple of Groups
-/// - LengthPrefixed<Collection, Group>, which is an integer N followed by
-/// N groups. The collection is constructed via FromIterator<Group>
-#[inline(always)]
-fn solve<T: Tokens, W: io::Write>(
-    case: usize,
-    global_data: &(u32, u32),
-    tokens: &mut T,
-    ostr: &mut W,
-) -> Result<(), Box<Error>> {
-    let data: LengthPrefixed<Vec<u32>, u32> = tokens.next()?;
-    let solution = global_data.0 + global_data.1 + data[0];
-
-    writeln!(ostr, "Case #{}: {}", case, solution)?;
-    Ok(())
-}
-
-/// Everything below this line is a pre-written scaffold based on my own
-/// LibCodeJam (https://github.com/Lucretiel/LibCodeJam). It's designed to
-/// provide a strongly- and implicitly-typed interface for reading data in
-/// the code jam style, as well as provide a typical main loop (read number
-/// of cases, then call a function for each case, printing the results). Most
-/// of this scaffold is dedicated to a composable, type-safe system for reading
-/// tokens or collections of tokens, followed by a buffered input reader
-/// designed for minimal data copying & allocating
-
+/// Main loop for solving code jam problems. Performs the following steps:
+/// - Create a Tokens instance associated with stdin
+/// - Read the number of cases, a usize value
+/// - Read any global data (data needed for all test cases). Type inferred
+///   by the solve function.
+/// - Call the solve function once for each test case, sending the results
+///   to stdout.
+/// - Panic with detailed information in the event of any errors.
 fn main() {
     let stdin = io::stdin();
     let stdin_lock = stdin.lock();
     let mut tokens = TokensReader::new(stdin_lock);
 
     let stdout = io::stdout();
-    let mut stdout_lock = stdout.lock();
+    let stdout_lock = stdout.lock();
+
+    // Currently, stdout is line-buffered unconditionally; this is simply
+    // a future-proof. We do this to simplify interactive problems, which are
+    // line-oriented.
+    let mut line_buffered = io::LineWriter::new(stdout_lock);
 
     let num_cases = tokens.next().unwrap_or_else(|err| {
         panic!("Error loading number of cases: {}", err);
@@ -77,15 +63,15 @@ fn main() {
     });
 
     for case in 0..num_cases {
-        solve(case + 1, &global_data, &mut tokens, &mut stdout_lock).unwrap_or_else(|err| {
+        solve(case + 1, &global_data, &mut tokens, &mut line_buffered).unwrap_or_else(|err| {
             panic!("Error solving Case #{}: {}", case + 1, err);
-        })
+        });
     }
 }
 
 /// A group is single token or group of tokens that knows how to independently
 /// read itself from a token stream. For example, a single number, a set of
-/// coordinates, or a length-prefixed list of Group.
+/// coordinates, or a length-prefixed list of Groups.
 trait Group: Sized {
     type Err: Error + 'static;
 
@@ -132,8 +118,8 @@ macro_rules! count {
     ($thing:ident $(, $rest:ident)*) => (1 + count!($($rest),*))
 }
 
-// Recursively implement Group for Tuples of length 1 throuhg the number of
-// provided identifiers.
+/// Recursively implement Group for Tuples of length 1 through the number of
+/// provided identifiers.
 macro_rules! tuple_group {
     () => ();
     ($head:ident $(, $tail:ident)*) => {
@@ -298,7 +284,7 @@ impl<'a, T: Tokens, G: Group> ExactSizeIterator for TokensIter<'a, T, G> {
 
 // Unfortunately, it's not possible to implement `Tokens` directly on a BufRead,
 // because we can't control the size of its buffer. We therefore have this
-// TokenBuffer / TokensReader construct to wrap a bufread (like stdin)
+// TokenBuffer / TokensReader construct to wrap a BufRead (like stdin)
 
 #[derive(Debug)]
 struct TokenBuffer(Vec<u8>);
@@ -333,7 +319,7 @@ impl<'a> TokenBufferLock<'a> {
     }
 
     // Complete the token: try to parse the buffer into a string and return
-    // a refernce to it
+    // a reference to it
     fn complete(self) -> Result<&'a str, RawTokenError> {
         from_utf8(self.0).map_err(RawTokenError::Utf8Error)
     }
@@ -583,4 +569,92 @@ impl Error for Never {
     fn description(&self) -> &str {
         unreachable!()
     }
+}
+
+/// Simple macro for creating typed enums with a FromStr and Group
+/// implementation. Example:
+///
+/// input_enum! {Direction {
+///     "U" => Up,
+///     "D" => Down,
+///     "L" => Left,
+///     "R" => Right,
+/// }}
+#[allow(unused_macros)]
+macro_rules! input_enum {
+    ($Name:ident {$(
+        $pattern:expr => $Variant:ident,
+    )*} err $Error:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        enum $Name {$(
+            $Variant,
+        )*}
+
+        impl FromStr for $Name {
+            type Err = $Error;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                if false { unreachable!() }
+                $(else if s.eq_ignore_ascii_case($pattern) {
+                    Ok($Name::$Variant)
+                })*
+                else {Err($Error)}
+            }
+        }
+
+        token! { $Name }
+
+        #[derive(Debug, Copy, Clone)]
+        struct $Error;
+
+        impl Display for $Error {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, concat!("Invalid token for ", stringify!($Name)))
+            }
+        }
+
+        impl Error for $Error {
+            fn description(&self) -> &str {
+                concat!("Invalid token for ", stringify!($Name))
+            }
+        }
+    };
+
+    ($Name:ident {$(
+        $pattern:expr => $Variant:ident,
+    )*}) => {
+        input_enum!{
+            $Name {$($pattern => $Variant,)*} err EnumError
+        }
+    };
+}
+
+/// Generic function to solve a single test case. This is the part that
+/// solution authors should edit. This function is called in a loop in main.
+///
+/// case: always a usize, it is the 1-indexed case number.
+/// global_data: any Group-implementing function (including ()); this data is
+/// loaded once (after num_cases) and passed by reference to each test case
+/// tokens: a Tokens struct, for reading tokens and Groups from stdin
+/// ostr: A line-buffered stdout target for writing your solution.
+///
+/// A Group is a token or collection of tokens that can be loaded from an input
+/// stream. Specifically, it is:
+///
+/// - An int or float
+/// - a char or String
+/// - any tuple of Groups
+/// - LengthPrefixed<Collection, Group>, which is an integer N followed by
+/// N groups. The collection is constructed via FromIterator<Group>
+#[inline(always)]
+fn solve<T: Tokens, W: io::Write>(
+    case: usize,
+    _global: &(),
+    tokens: &mut T,
+    ostr: &mut W,
+) -> Result<(), Box<Error>> {
+    let value: String = tokens.next()?;
+
+    writeln!(ostr, "Case #{}: {}", case, value)?;
+    Ok(())
 }
