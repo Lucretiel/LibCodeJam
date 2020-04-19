@@ -573,6 +573,23 @@ impl Error for Never {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GenericError {
+    message: String,
+}
+
+impl Display for GenericError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.message.fmt(f)
+    }
+}
+
+impl Error for GenericError {
+    fn description(&self) -> &str {
+        self.message.as_str()
+    }
+}
+
 /// Simple macro for creating typed enums with a FromStr and Group
 /// implementation. Example:
 ///
@@ -631,6 +648,15 @@ macro_rules! input_enum {
     };
 }
 
+/// Helper macro for returning errors instead of panicking. This macro expands
+/// to return Err(...) with a ?
+#[allow(unused_macros)]
+macro_rules! err {
+    ($($message:tt)*) => {
+        Err(GenericError{message: format!($($message)*)})?
+    }
+}
+
 /// Generic function to solve a single test case. This is the part that
 /// solution authors should edit. This function is called in a loop in main.
 ///
@@ -656,6 +682,10 @@ fn solve<T: Tokens, W: io::Write>(
     ostr: &mut W,
 ) -> Result<(), Box<Error>> {
     let value: String = tokens.next()?;
+
+    if false {
+        err!("Couldn't figure something out");
+    }
 
     writeln!(ostr, "Case #{}: {}", case, value)?;
     Ok(())
