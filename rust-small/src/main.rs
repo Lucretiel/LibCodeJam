@@ -138,9 +138,11 @@ macro_rules! tuple_group {
 
                 // Need to load head last because the reported error index is
                 // the length of the tail
-                let $head = tokens.next().map_err(|err| TupleGroupError::new(count!($($tail),*), err))?;
+                let $head = tokens.next().map_err(|err|
+                    TupleGroupError::new(count!($($tail),*), err)
+                )?;
 
-                Ok(($head , $($tail, )*))
+                Ok(($($tail,)* $head,))
             }
         }
     }
