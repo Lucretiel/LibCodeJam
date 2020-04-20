@@ -8,7 +8,7 @@ use std::str::{from_utf8, Utf8Error};
 
 use derive_more::From;
 
-use crate::data::{GlobalData, GlobalDataError, LoadGlobalData, Group};
+use crate::data::{GlobalData, GlobalDataError, Group, LoadGlobalData};
 
 #[derive(Debug, From)]
 pub enum LoadError {
@@ -171,7 +171,7 @@ impl<R: io::BufRead> TokensReader<R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
-            token: TokenBuffer::new()
+            token: TokenBuffer::new(),
         }
     }
 }
@@ -186,46 +186,43 @@ impl<R: io::BufRead> Tokens for TokensReader<R> {
     fn next_raw(&mut self) -> Result<&str, LoadError> {
         use std::io::ErrorKind::Interrupted;
 
-        // TODO: clean this up when NLL is ready
         // Clear leading whitespace
-        let final_leading_ws = loop {
-            let leading_ws = match self.reader.fill_buf() {
+        loop {
+            match self.reader.fill_buf() {
                 Err(ref err) if err.kind() == Interrupted => continue,
                 Err(err) => return Err(LoadError::Io(err)),
                 Ok([]) => return Err(LoadError::OutOfTokens),
                 Ok(buf) => match buf.iter().position(|byte| !byte.is_ascii_whitespace()) {
-                    Some(i) => break i,
-                    None => buf.len(),
+                    Some(i) => {
+                        self.reader.consume(i);
+                        break;
+                    }
+                    None => self.reader.consume(buf.len()),
                 },
             };
-            self.reader.consume(leading_ws);
-        };
-        self.reader.consume(final_leading_ws);
+        }
 
         // If we reach this point, there is definitely a non-empty token ready to be read.
         let mut token_buf = self.token.lock();
 
-        let final_amt = loop {
-            let amt = match self.reader.fill_buf() {
+        loop {
+            match self.reader.fill_buf() {
                 Err(ref err) if err.kind() == Interrupted => continue,
                 Err(err) => return Err(LoadError::Io(err)),
                 Ok([]) => return token_buf.complete(),
                 Ok(buf) => match buf.iter().position(u8::is_ascii_whitespace) {
                     Some(i) => {
                         token_buf.extend(&buf[..i]);
-                        break i + 1;
+                        self.reader.consume(i + 1);
+                        return token_buf.complete();
                     }
                     None => {
                         token_buf.extend(buf);
-                        buf.len()
+                        self.reader.consume(buf.len());
                     }
                 },
-            };
-            self.reader.consume(amt);
-        };
-        self.reader.consume(final_amt);
-
-        token_buf.complete()
+            }
+        }
     }
 }
 
